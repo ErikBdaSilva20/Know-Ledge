@@ -1,0 +1,249 @@
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useDb } from "@/lib/useDb";
+import { documentsRepo } from "@/lib/repos/documents";
+import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { syncAllRefsFor } from "@/lib/syncRefs";
+import { pushRecent } from "@/lib/recents";
+import { MarkdownView } from "@/lib/markdown";
+import type { Scope } from "@/lib/types";
+import { Code2, Eye, Save } from "lucide-react";
+import { Button } from "./ui/button";
+import { cn } from "@/lib/utils";
+
+interface Props {
+  scope: Scope;
+  id: string;
+  readOnly?: boolean;
+}
+
+interface PaneToggleProps {
+  active: boolean;
+  disabled?: boolean;
+  onClick: () => void;
+  icon: React.ReactNode;
+  label: string;
+  title: string;
+}
+
+/**
+ * Reusable pane visibility toggle (raw markdown / formatted preview).
+ * `disabled` prevents hiding the last remaining pane.
+ */
+function PaneToggle({ active, disabled, onClick, icon, label, title }: PaneToggleProps) {
+  return (
+    <Button
+      variant={active ? "secondary" : "ghost"}
+      size="sm"
+      onClick={onClick}
+      disabled={disabled}
+      title={title}
+      aria-pressed={active}
+    >
+      <span className="sm:mr-1">{icon}</span>
+      <span className="hidden sm:inline">{label}</span>
+    </Button>
+  );
+}
+
+export function Editor({ scope, id, readOnly }: Props) {
+  const personal = useDb((s) => s.documents.find((d) => d.id === id));
+  const shared = useDb((s) => s.shared_documents.find((s) => s.id === id));
+  const doc = scope === "personal" ? personal : shared;
+
+  const [title, setTitle] = useState(doc?.title ?? "");
+  const [content, setContent] = useState(doc?.content ?? "");
+  const [dirty, setDirty] = useState(false);
+  const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [showRaw, setShowRaw] = useState(true);
+  const [showPreview, setShowPreview] = useState(true);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
+  const [autoQuery, setAutoQuery] = useState("");
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const allPersonal = useDb((s) => s.documents);
+  const allShared = useDb((s) => s.shared_documents);
+
+  useEffect(() => {
+    if (!doc) return;
+    setTitle(doc.title);
+    setContent(doc.content);
+    setDirty(false);
+    pushRecent(scope, doc.id);
+  }, [doc?.id]);
+
+  useEffect(() => {
+    if (!dirty || !doc) return;
+    const t = setTimeout(async () => {
+      if (scope === "personal") {
+        await documentsRepo.update(doc.id, { title, content });
+      } else {
+        await sharedDocumentsRepo.update(doc.id, { title, content });
+      }
+      syncAllRefsFor(scope, doc.id);
+      setDirty(false);
+      setSavedAt(new Date());
+    }, 500);
+    return () => clearTimeout(t);
+  }, [dirty, title, content, doc?.id, scope]);
+
+  const visiblePersonalIds = useMemo(() => new Set(allPersonal.map((d) => d.id)), [allPersonal]);
+
+  const autocompleteMatches = useMemo(() => {
+    if (!showAutocomplete) return [];
+    const q = autoQuery.toLowerCase();
+    const all: Array<{ scope: Scope; title: string; id: string }> = [
+      ...allShared.map((s) => ({ scope: "shared" as Scope, title: s.title, id: s.id })),
+      ...allPersonal.map((d) => ({ scope: "personal" as Scope, title: d.title, id: d.id })),
+    ];
+    return all.filter((x) => x.title.toLowerCase().includes(q)).slice(0, 8);
+  }, [showAutocomplete, autoQuery, allShared, allPersonal]);
+
+  if (!doc) return <div className="p-10 text-muted-foreground">Documento não encontrado.</div>;
+
+  const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    const v = e.target.value;
+    setContent(v);
+    setDirty(true);
+
+    const pos = e.target.selectionStart;
+    const before = v.slice(0, pos);
+    const m = before.match(/\[\[([^[\]\n]*)$/);
+    if (m) {
+      setShowAutocomplete(true);
+      setAutoQuery(m[1]);
+    } else {
+      setShowAutocomplete(false);
+    }
+  };
+
+  const insertLink = (match: { title: string; id: string }) => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    const pos = ta.selectionStart;
+    const before = content.slice(0, pos);
+    const m = before.match(/\[\[([^[\]\n]*)$/);
+    if (!m) return;
+    const start = pos - m[0].length;
+    // Embed the id (ADR-001): resolution stays correct even if the target is renamed later.
+    const inserted = `[[${match.title}|${match.id}]]`;
+    const newContent = content.slice(0, start) + inserted + content.slice(pos);
+    setContent(newContent);
+    setDirty(true);
+    setShowAutocomplete(false);
+    setTimeout(() => {
+      ta.focus();
+      const newPos = start + inserted.length;
+      ta.setSelectionRange(newPos, newPos);
+    }, 0);
+  };
+
+  // Guard: never hide the last remaining pane.
+  const bothVisible = showRaw && showPreview;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
+        <input
+          value={title}
+          disabled={readOnly}
+          onChange={(e) => {
+            setTitle(e.target.value);
+            setDirty(true);
+          }}
+          className="min-w-0 flex-1 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground sm:text-2xl"
+          placeholder="Sem título"
+        />
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          {dirty ? (
+            <span className="flex items-center gap-1">
+              <Save className="h-3 w-3 animate-pulse" /> Salvando…
+            </span>
+          ) : savedAt ? (
+            <span className="hidden sm:inline">Salvo às {savedAt.toLocaleTimeString()}</span>
+          ) : (
+            <span className="hidden sm:inline">Salvo</span>
+          )}
+          <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
+            <PaneToggle
+              active={showRaw}
+              disabled={showRaw && !showPreview}
+              onClick={() => setShowRaw((v) => !v)}
+              icon={<Code2 className="h-3.5 w-3.5" />}
+              label="Markdown"
+              title={showRaw ? "Ocultar markdown" : "Mostrar markdown"}
+            />
+            <PaneToggle
+              active={showPreview}
+              disabled={showPreview && !showRaw}
+              onClick={() => setShowPreview((v) => !v)}
+              icon={<Eye className="h-3.5 w-3.5" />}
+              label="Preview"
+              title={showPreview ? "Ocultar preview" : "Mostrar preview"}
+            />
+          </div>
+        </div>
+      </div>
+
+      <div className="min-h-0 flex-1 overflow-y-auto">
+        <div
+          className={cn(
+            "grid min-h-full",
+            bothVisible ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1",
+          )}
+        >
+          {showRaw && (
+            <div className={cn("relative", showPreview && "border-r border-border")}>
+              <textarea
+                value={content}
+                readOnly={readOnly}
+                onChange={handleContentChange}
+                onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
+                placeholder="Escreva em Markdown… use [[ para linkar outros documentos"
+                rows={1}
+                ref={(el) => {
+                  textareaRef.current = el;
+                  if (el) {
+                    el.style.height = "auto";
+                    const parentH = el.parentElement?.clientHeight ?? 0;
+                    el.style.height = `${Math.max(el.scrollHeight, parentH)}px`;
+                  }
+                }}
+                className="block w-full resize-none bg-transparent px-6 py-6 font-mono text-sm leading-relaxed outline-none placeholder:text-muted-foreground"
+              />
+              {showAutocomplete && autocompleteMatches.length > 0 && (
+                <div className="absolute left-6 top-6 z-10 w-80 overflow-hidden rounded-md border border-border bg-popover shadow-lg">
+                  <div className="border-b border-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+                    Referenciar documento
+                  </div>
+                  {autocompleteMatches.map((m, i) => (
+                    <button
+                      key={`${m.scope}:${m.id}:${i}`}
+                      onClick={() => insertLink(m)}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm hover:bg-accent"
+                    >
+                      <span className="text-muted-foreground">
+                        {m.scope === "shared" ? "◇" : "◆"}
+                      </span>
+                      <span className="flex-1 truncate">{m.title}</span>
+                      <span className="text-[10px] uppercase text-muted-foreground">{m.scope}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          {showPreview && (
+            <div className="bg-background px-6 py-6">
+              <MarkdownView
+                content={content}
+                personalDocs={allPersonal}
+                sharedDocs={allShared}
+                visiblePersonalIds={visiblePersonalIds}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
