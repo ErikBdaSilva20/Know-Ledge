@@ -8,6 +8,10 @@ interface SessionCtx {
   user: User | null;
   setUserId: (id: string | null) => void;
   can: (perm: Permission) => boolean;
+  // Re-checks auth.me() after a real sign-in/sign-out against the gateway —
+  // the mount effect below only runs once, so a fresh login needs this to
+  // make `user` reflect the new session without a full page reload.
+  refreshGatewaySession: () => Promise<void>;
 }
 
 type Permission = "seeAllDocs" | "publishShared" | "editShared" | "admin";
@@ -31,14 +35,17 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   const [userId, setUserIdState] = useState<string | null>(null);
   const [gatewayUser, setGatewayUser] = useState<User | null>(null);
 
+  const refreshGatewaySession = async () => {
+    const { user, role } = await auth.me();
+    setGatewayUser(user && role ? { ...user, role } : null);
+  };
+
   useEffect(() => {
     if (isGatewayMode()) {
-      // Real session hydration (Story 1.6 AC#4). There is no real login form
-      // yet (LoginPage is still the mock role picker) — this only recognizes
-      // a session that already exists (e.g. a cookie set by the gateway).
-      auth.me().then(({ user, role }) => {
-        if (user && role) setGatewayUser({ ...user, role });
-      });
+      // Real session hydration (Story 1.6). Runs once on mount to pick up an
+      // existing cookie; LoginPage calls refreshGatewaySession() again right
+      // after a real sign-in, since this effect only fires once.
+      refreshGatewaySession();
       return;
     }
     try {
@@ -71,6 +78,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       user,
       setUserId,
       can: (p) => perms.has(p),
+      refreshGatewaySession,
     };
   }, [userId, gatewayUser]);
 
