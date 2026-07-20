@@ -5,7 +5,7 @@ import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Search as SearchIcon } from "lucide-react";
-import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { SideNavShell } from "@/components/SideNavShell";
 import { cn } from "@/lib/utils";
 

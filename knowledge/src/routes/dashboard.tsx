@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/repos/documents";
+import { documentsRepo } from "@/lib/data/documents.repo";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";

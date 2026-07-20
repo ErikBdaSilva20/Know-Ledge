@@ -8,6 +8,50 @@
 
 ---
 
+# 0. Topologia-alvo e Superfícies deste App
+
+## 0.1 Topologia-alvo
+
+```mermaid
+flowchart LR
+  SPA["SPA Vite/React<br/>(Knowledge Vault)"] -- HTTPS --> GW["tenant-gateway<br/>(compartilhado, Hono)"]
+  GW -- SQL --> NEON["Neon<br/>(Postgres do tenant)"]
+```
+
+`[SPA Vite/React] --HTTPS--> [tenant-gateway compartilhado] --SQL--> [Neon do tenant]`. O gateway resolve o tenant por hostname (produção, via edge worker) ou pelo header `X-Tenant-Id` (dev local) — nunca por lógica no app. [Source: Importantdoc.md#B1]
+
+## 0.2 Onde tudo mora
+
+| Peça | Localização |
+|---|---|
+| Este app (Knowledge Vault) | `knowledge/` (SPA Vite/React) |
+| Gateway (backend compartilhado) | repo separado `Cerebra-AI/tenant-gateway`, deploy Fly |
+| Edge worker (injeta tenant em runtime) | `masia/clone-templates/edge-worker/` |
+| Migrations do schema deste app | `knowledge/supabase/migrations/` (roda no Neon do tenant) |
+
+[Source: Importantdoc.md#B2]
+
+## 0.3 Proibições duras
+
+- **Sem backend próprio.** Nenhum servidor Express/Nest/Next por-app. O backend é sempre o `tenant-gateway` compartilhado.
+- **Sem BaaS alternativo.** Nunca `@supabase`, Firebase, ou qualquer driver SQL rodando no browser.
+- **Sem RLS, sem `auth.uid()`, sem tabela `profiles`.** A autorização é 100% no gateway (app-layer) — o Neon deste tenant guarda só o schema de negócio.
+- **Sem acesso direto ao banco.** Toda leitura/escrita passa por `db`/`auth` (`src/lib/data/client.ts`).
+
+[Source: Importantdoc.md#B1][Source: Importantdoc.md#B3]
+
+## 0.4 As 3 superfícies de trabalho deste app (e somente elas)
+
+1. **Schema/migration no Neon** — `supabase/migrations/*.sql`, seguindo as regras §B4 da fundação (seção 3 abaixo).
+2. **Camada de dados do app** — `src/lib/data/*.repo.ts`, falando com o gateway via `db.table()`.
+3. **Extensões explícitas do gateway** — quando o produto precisa de algo fora do CRUD genérico (ex.: rota Publicar, seção 5), é pedido como extensão pontual do `tenant-gateway`, nunca resolvido criando servidor próprio.
+
+## 0.5 Isolamento físico
+
+Cada cliente (tenant) tem **1 projeto Neon dedicado** — os dados de um tenant nunca compartilham banco com outro. O app nunca sabe disso: ele só fala com o gateway via `db`/`auth`, e é o gateway que resolve qual Neon atender. [Source: Importantdoc.md#B1]
+
+---
+
 # 1. Stack Tecnológica
 
 A stack não é uma escolha livre deste projeto — é imposta pela fundação MasIA (`Importantdoc.md`, PARTE B). Qualquer desvio quebra o modelo de clone/publish da fundação.

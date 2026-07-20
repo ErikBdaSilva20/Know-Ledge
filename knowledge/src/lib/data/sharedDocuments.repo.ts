@@ -1,8 +1,13 @@
+import { db } from "./client";
+import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { SharedDocument } from "../types";
 
+const table = db.table<SharedDocument>("shared_documents");
+
 export const sharedDocumentsRepo = {
   async list(): Promise<SharedDocument[]> {
+    if (isGatewayMode()) return table.list();
     return getState().shared_documents.slice();
   },
   async create(data: {
@@ -11,6 +16,11 @@ export const sharedDocumentsRepo = {
     source_document_id: string | null;
     published_by: string;
   }): Promise<SharedDocument> {
+    if (isGatewayMode()) {
+      // published_by is derived from the session by the gateway (Story 3.1).
+      const { published_by, ...rest } = data;
+      return table.create(rest);
+    }
     const s: SharedDocument = {
       id: genId("s"),
       title: data.title,
@@ -26,6 +36,10 @@ export const sharedDocumentsRepo = {
     return s;
   },
   async update(id: string, patch: Partial<SharedDocument>): Promise<void> {
+    if (isGatewayMode()) {
+      await table.update(id, patch);
+      return;
+    }
     mutate((db) => {
       const idx = db.shared_documents.findIndex((d) => d.id === id);
       if (idx < 0) return;
@@ -33,6 +47,10 @@ export const sharedDocumentsRepo = {
     });
   },
   async remove(id: string): Promise<void> {
+    if (isGatewayMode()) {
+      await table.remove(id);
+      return;
+    }
     mutate((db) => {
       db.shared_documents = db.shared_documents.filter((d) => d.id !== id);
       db.shared_document_references = db.shared_document_references.filter(

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/repos/documents";
-import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";

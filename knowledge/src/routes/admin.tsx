@@ -7,8 +7,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
-import { documentsRepo } from "@/lib/repos/documents";
-import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Role } from "@/lib/types";
 

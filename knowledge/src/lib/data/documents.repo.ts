@@ -1,11 +1,21 @@
+import { db } from "./client";
+import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Document } from "../types";
 
+const table = db.table<Document>("documents");
+
 export const documentsRepo = {
   async list(): Promise<Document[]> {
+    if (isGatewayMode()) return table.list();
     return getState().documents.slice();
   },
   async create(data: Partial<Document> & { owner_id: string; title: string }): Promise<Document> {
+    if (isGatewayMode()) {
+      // owner_id is derived from the session by the gateway — never sent by the front.
+      const { owner_id, ...rest } = data;
+      return table.create(rest);
+    }
     const doc: Document = {
       id: genId("d"),
       owner_id: data.owner_id,
@@ -21,6 +31,10 @@ export const documentsRepo = {
     return doc;
   },
   async update(id: string, patch: Partial<Document>): Promise<void> {
+    if (isGatewayMode()) {
+      await table.update(id, patch);
+      return;
+    }
     mutate((s) => {
       const idx = s.documents.findIndex((d) => d.id === id);
       if (idx < 0) return;
@@ -28,6 +42,10 @@ export const documentsRepo = {
     });
   },
   async remove(id: string): Promise<void> {
+    if (isGatewayMode()) {
+      await table.remove(id);
+      return;
+    }
     mutate((s) => {
       s.documents = s.documents.filter((d) => d.id !== id);
       s.document_references = s.document_references.filter(

@@ -1,8 +1,13 @@
+import { db } from "./client";
+import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Folder } from "../types";
 
+const table = db.table<Folder>("folders");
+
 export const foldersRepo = {
   async list(): Promise<Folder[]> {
+    if (isGatewayMode()) return table.list();
     return getState().folders.slice();
   },
   async create(data: {
@@ -10,6 +15,10 @@ export const foldersRepo = {
     parent_id: string | null;
     name: string;
   }): Promise<Folder> {
+    if (isGatewayMode()) {
+      const { owner_id, ...rest } = data;
+      return table.create(rest);
+    }
     const f: Folder = {
       id: genId("f"),
       owner_id: data.owner_id,
@@ -24,6 +33,10 @@ export const foldersRepo = {
     return f;
   },
   async update(id: string, patch: Partial<Folder>): Promise<void> {
+    if (isGatewayMode()) {
+      await table.update(id, patch);
+      return;
+    }
     mutate((s) => {
       const idx = s.folders.findIndex((f) => f.id === id);
       if (idx < 0) return;
@@ -31,6 +44,14 @@ export const foldersRepo = {
     });
   },
   async remove(id: string): Promise<void> {
+    if (isGatewayMode()) {
+      // The gateway has no cascade-on-delete for folders; mirror the mock's
+      // recursive cleanup client-side once Epic 2 ships the FK constraints
+      // (subfolders/documents already cascade in Neon via ON DELETE — see
+      // doc/architecture/01-stack-e-modelagem.md §3.1/§3.2).
+      await table.remove(id);
+      return;
+    }
     mutate((s) => {
       // recursively remove folder + subfolders + documents in them
       const toRemove = new Set<string>([id]);

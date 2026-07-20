@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { getState } from "./mockDb";
+import { auth } from "./data/client";
+import { isGatewayMode } from "./data/dataSource";
 import type { Role, User } from "./types";
 
 interface SessionCtx {
@@ -27,8 +29,18 @@ function permsFor(role: Role): Set<Permission> {
 
 export function SessionProvider({ children }: { children: ReactNode }) {
   const [userId, setUserIdState] = useState<string | null>(null);
+  const [gatewayUser, setGatewayUser] = useState<User | null>(null);
 
   useEffect(() => {
+    if (isGatewayMode()) {
+      // Real session hydration (Story 1.6 AC#4). There is no real login form
+      // yet (LoginPage is still the mock role picker) — this only recognizes
+      // a session that already exists (e.g. a cookie set by the gateway).
+      auth.me().then(({ user, role }) => {
+        if (user && role) setGatewayUser({ ...user, role });
+      });
+      return;
+    }
     try {
       const raw = localStorage.getItem(SESSION_KEY);
       if (raw) setUserIdState(JSON.parse(raw));
@@ -38,6 +50,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const setUserId = (id: string | null) => {
+    if (isGatewayMode()) return; // driven by auth.me(), not the mock picker
     setUserIdState(id);
     try {
       if (id) localStorage.setItem(SESSION_KEY, JSON.stringify(id));
@@ -48,14 +61,18 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   };
 
   const value = useMemo<SessionCtx>(() => {
-    const user = userId ? (getState().users.find((u) => u.id === userId) ?? null) : null;
+    const user = isGatewayMode()
+      ? gatewayUser
+      : userId
+        ? (getState().users.find((u) => u.id === userId) ?? null)
+        : null;
     const perms = user ? permsFor(user.role) : new Set<Permission>();
     return {
       user,
       setUserId,
       can: (p) => perms.has(p),
     };
-  }, [userId]);
+  }, [userId, gatewayUser]);
 
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 }

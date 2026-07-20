@@ -1,6 +1,10 @@
+---
+baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
+---
+
 # Story 1.2: Contrato de dados `/data/:table` (4 operações, sem get-by-id, sem filtro no servidor)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,13 +23,13 @@ so that **nenhuma tela dependa de operações que o gateway não oferece, evitan
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar a superfície da API de dados (AC: #1, #2, #3) [Source: Importantdoc.md#B5]
-  - [ ] Subtask 1.1: Assinatura de `db.table<R>(name)` com `list/create/update/remove`
-  - [ ] Subtask 1.2: Nota dura "sem get-by-id, sem filtro server-side, sem join"
-- [ ] Task 2: Auditar cada tela do brief contra o contrato (AC: #5, #6) [Source: LOVEABLE-BRIEF.md#5]
-  - [ ] Subtask 2.1: Workspace, Base Compartilhada, Busca, Grafo, Favoritos/Recentes, Admin
-  - [ ] Subtask 2.2: Mapear a rota `/doc/:id` para "list + find" (deep-link resolve em memória)
-- [ ] Task 3: Registrar os 3 caminhos para relações (plano / 2 queries / extensão) (AC: #3)
+- [x] Task 1: Documentar a superfície da API de dados (AC: #1, #2, #3) [Source: Importantdoc.md#B5]
+  - [x] Subtask 1.1: Assinatura de `db.table<R>(name)` com `list/create/update/remove`
+  - [x] Subtask 1.2: Nota dura "sem get-by-id, sem filtro server-side, sem join"
+- [x] Task 2: Auditar cada tela do brief contra o contrato (AC: #5, #6) [Source: LOVEABLE-BRIEF.md#5]
+  - [x] Subtask 2.1: Workspace, Base Compartilhada, Busca, Grafo, Favoritos/Recentes, Admin
+  - [x] Subtask 2.2: Mapear a rota `/doc/:id` para "list + find" (deep-link resolve em memória)
+- [x] Task 3: Registrar os 3 caminhos para relações (plano / 2 queries / extensão) (AC: #3)
 
 ## Dev Notes
 
@@ -47,8 +51,16 @@ so that **nenhuma tela dependa de operações que o gateway não oferece, evitan
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- AC#1–#4 já estavam documentados em `doc/architecture/01-stack-e-modelagem.md` §2 (Aprovado) — não duplicado; a implementação concreta é `knowledge/src/lib/data/client.ts` (`db.table<R>()` só expõe `list/create/update/remove`, sem `getById`, sem filtro, sem join).
+- Auditoria de telas (AC#5, #6) confirmada por leitura do código: `workspace-doc.tsx` (`useDb((s) => s.documents.find((d) => d.id === docId))`), `shared-doc.tsx`, `search.tsx`, `recent.tsx`, `graph.tsx`/`Backlinks.tsx` — todas fazem list-then-find/filter em memória, nenhuma depende de get-by-id ou filtro no servidor. Rota `/workspace/:docId` e `/shared/:docId` resolvem por `list()` + `.find()`, não por request dedicado.
+- 3 caminhos para relações (plano/2-queries/extensão) já registrados em `doc/architecture/01-stack-e-modelagem.md` §2 e §5.3.
+
 ### File List
+
+- (nenhum arquivo novo — auditoria e contrato verificados contra `knowledge/src/lib/data/client.ts` e `doc/architecture/01-stack-e-modelagem.md`, ambos entregues nas Stories 1.1/1.3)

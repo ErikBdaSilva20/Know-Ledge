@@ -5,8 +5,8 @@ import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
-import { favoritesRepo } from "@/lib/repos/favorites";
-import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { favoritesRepo } from "@/lib/data/favorites.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export function SharedDoc() {

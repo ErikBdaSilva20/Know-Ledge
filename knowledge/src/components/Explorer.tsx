@@ -15,8 +15,8 @@ import {
 import type { Document, Folder } from "@/lib/types";
 import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/repos/documents";
-import { foldersRepo } from "@/lib/repos/folders";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,

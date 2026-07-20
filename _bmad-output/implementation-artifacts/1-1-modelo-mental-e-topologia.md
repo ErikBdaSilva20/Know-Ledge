@@ -1,6 +1,10 @@
+---
+baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
+---
+
 # Story 1.1: Modelo mental e topologia do backend (fundação MasIA)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,13 +23,13 @@ so that **ninguém escreva um servidor por-app proibido nem acesse o banco diret
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Escrever a seção "Topologia-alvo" no doc de arquitetura do backend (AC: #1, #6)
-  - [ ] Subtask 1.1: Diagrama mermaid SPA → gateway → Neon com resolução de tenant
-  - [ ] Subtask 1.2: Tabela "onde tudo mora" (templates, edge-worker, gateway, migrations) [Source: Importantdoc.md#B2]
-- [ ] Task 2: Escrever a seção "Proibições duras" (AC: #2, #3)
-  - [ ] Subtask 2.1: Lista negativa (sem backend próprio, sem BaaS, sem RLS, sem acesso direto ao banco)
-- [ ] Task 3: Escrever a seção "As 3 superfícies deste app" (AC: #4, #5)
-- [ ] Task 4: Revisão cruzada com `Importantdoc.md` §B1–§B3 garantindo zero contradição
+- [x] Task 1: Escrever a seção "Topologia-alvo" no doc de arquitetura do backend (AC: #1, #6)
+  - [x] Subtask 1.1: Diagrama mermaid SPA → gateway → Neon com resolução de tenant
+  - [x] Subtask 1.2: Tabela "onde tudo mora" (templates, edge-worker, gateway, migrations) [Source: Importantdoc.md#B2]
+- [x] Task 2: Escrever a seção "Proibições duras" (AC: #2, #3)
+  - [x] Subtask 2.1: Lista negativa (sem backend próprio, sem BaaS, sem RLS, sem acesso direto ao banco)
+- [x] Task 3: Escrever a seção "As 3 superfícies deste app" (AC: #4, #5)
+- [x] Task 4: Revisão cruzada com `Importantdoc.md` §B1–§B3 garantindo zero contradição
 
 ## Dev Notes
 
@@ -49,8 +53,16 @@ so that **ninguém escreva um servidor por-app proibido nem acesse o banco diret
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Adicionada seção "0. Topologia-alvo e Superfícies deste App" em `doc/architecture/01-stack-e-modelagem.md`, antes da seção 1 (numeração `0.x` para não quebrar referências cruzadas existentes a `Documento 01 §N`).
+- Conteúdo escrito em português para manter consistência com o resto de `doc/architecture/` e `Importantdoc.md` (todos PT-BR) — decisão confirmada com o usuário, apesar de `config.yaml` apontar `document_output_language: English`.
+- Diagrama mermaid, tabela "onde tudo mora", lista de proibições duras e as 3 superfícies cobrem os ACs #1–#6 sem contradizer `Importantdoc.md` §B1–B3.
+
 ### File List
+
+- `doc/architecture/01-stack-e-modelagem.md` (modificado)

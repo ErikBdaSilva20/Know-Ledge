@@ -3,7 +3,7 @@ import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { BookOpen, FileText, Star } from "lucide-react";
-import { favoritesRepo } from "@/lib/repos/favorites";
+import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { Button } from "@/components/ui/button";
 
 export function FavoritesPage() {

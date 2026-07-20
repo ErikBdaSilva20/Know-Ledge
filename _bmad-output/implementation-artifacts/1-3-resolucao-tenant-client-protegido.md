@@ -1,6 +1,10 @@
+---
+baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
+---
+
 # Story 1.3: Resolução de tenant e o `client.ts` protegido (contrato de sessão)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,12 +23,12 @@ so that **a costura front↔gateway não quebre o roteamento de tenant nem o con
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar a cadeia de resolução de config do `client.ts` (AC: #1, #2, #5)
-  - [ ] Subtask 1.1: Ordem de precedência `?gw=&t=` → `VITE_*` → globais de runtime
-  - [ ] Subtask 1.2: `credentials: 'include'` + `X-Tenant-Id`
-- [ ] Task 2: Documentar o branch PREVIEW e sua separação do fluxo real (AC: #3)
-- [ ] Task 3: Marcar `client.ts`/`types.gen.ts` como protegidos e explicar o porquê (AC: #4)
-- [ ] Task 4: Nota de segurança: `X-Tenant-Id` é validado no gateway (AC: #6) — linkar Story 6.9
+- [x] Task 1: Documentar a cadeia de resolução de config do `client.ts` (AC: #1, #2, #5)
+  - [x] Subtask 1.1: Ordem de precedência `?gw=&t=` → `VITE_*` → globais de runtime
+  - [x] Subtask 1.2: `credentials: 'include'` + `X-Tenant-Id`
+- [x] Task 2: Documentar o branch PREVIEW e sua separação do fluxo real (AC: #3)
+- [x] Task 3: Marcar `client.ts`/`types.gen.ts` como protegidos e explicar o porquê (AC: #4)
+- [x] Task 4: Nota de segurança: `X-Tenant-Id` é validado no gateway (AC: #6) — linkar Story 6.9
 
 ## Dev Notes
 
@@ -48,8 +52,23 @@ so that **a costura front↔gateway não quebre o roteamento de tenant nem o con
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Implementado `knowledge/src/lib/data/client.ts` (PROTEGIDO): `resolveConfig()` resolve `gatewayUrl`/`tenantId` na ordem `?gw=&t=` → `import.meta.env.VITE_*` → `window.__MASI_GW__`/`__MASI_TENANT__`; `api()` sempre manda `credentials: 'include'` + header `X-Tenant-Id`.
+- Branch de PREVIEW: `isPreview()` lê `window.__MASI_PREVIEW__`; em preview, `db.table(name).list()` retorna fixtures de `window.__MASI_PREVIEW_FIXTURES__[name]` em vez de bater no gateway; `auth.me()` retorna sessão vazia. Separado do fluxo real (nunca chama `fetch`).
+- `auth.me()/signIn/signUp/signOut` implementados contra a superfície REST padrão do Better-Auth (`/api/auth/get-session`, `/sign-in/email`, `/sign-up/email`, `/sign-out`) — **precisa ser confirmado contra a config real do gateway quando o Epic 3 ligar auth de verdade**; hoje nada no app chama esses métodos ainda (isso é da Story 1.6/Epic 3).
+- `types.gen.ts` criado (PROTEGIDO, gerado a partir do schema de `doc/architecture/01-stack-e-modelagem.md` §3 — regenerar quando as migrations reais do Epic 2 existirem).
+- `client.ts`/`types.gen.ts`/`dataSource.ts` listados como `protect` em `knowledge/masi.template.json` (Story 1.4).
+- Nota de segurança (AC#6): `X-Tenant-Id` é só um hint do client — a validação real (tenant bate com a sessão) é responsabilidade do gateway, aprofundada na Story 6.9 (ainda não implementada, é backend fora deste repo).
+- `window.__MASI_GW__`/`__MASI_TENANT__`/`__MASI_PREVIEW__`/`__MASI_PREVIEW_FIXTURES__` e `import.meta.env.VITE_*` tipados em `knowledge/src/vite-env.d.ts` (evita `as any` no client).
+
 ### File List
+
+- `knowledge/src/lib/data/client.ts` (novo, protegido)
+- `knowledge/src/lib/data/types.gen.ts` (novo, protegido)
+- `knowledge/src/vite-env.d.ts` (novo)
+- `knowledge/.env.example` (novo)

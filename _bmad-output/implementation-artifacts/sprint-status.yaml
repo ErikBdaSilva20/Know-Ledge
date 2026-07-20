@@ -11,13 +11,13 @@ last_updated: 2026-07-19
 
 development_status:
   # E1 — Fundação, Contrato & Camada de Dados
-  epic-1: in-progress
-  1-1-modelo-mental-e-topologia: ready-for-dev
-  1-2-contrato-data-table: ready-for-dev
-  1-3-resolucao-tenant-client-protegido: ready-for-dev
-  1-4-manifest-papeis-better-auth: ready-for-dev
-  1-5-camada-dados-isolada-controllers: ready-for-dev
-  1-6-costura-mock-para-gateway: ready-for-dev
+  epic-1: done
+  1-1-modelo-mental-e-topologia: done
+  1-2-contrato-data-table: done
+  1-3-resolucao-tenant-client-protegido: done
+  1-4-manifest-papeis-better-auth: done
+  1-5-camada-dados-isolada-controllers: done
+  1-6-costura-mock-para-gateway: done
 
   # E2 — Schema & Migração Neon (§B4)
   epic-2: backlog

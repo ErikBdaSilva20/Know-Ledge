@@ -21,6 +21,9 @@ export default tseslint.config(
     rules: {
       ...reactHooks.configs.recommended.rules,
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
+      // Repos destructure-and-drop session-derived fields (owner_id, published_by)
+      // before forwarding a payload to the gateway — see src/lib/data/*.repo.ts.
+      "@typescript-eslint/no-unused-vars": ["error", { ignoreRestSiblings: true }],
     },
   },
   eslintPluginPrettier,

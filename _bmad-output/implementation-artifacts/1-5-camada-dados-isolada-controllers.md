@@ -1,6 +1,10 @@
+---
+baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
+---
+
 # Story 1.5: Camada de dados isolada ("controllers") — jamais junto do fluxo de UI
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -23,12 +27,12 @@ so that **a UI nunca dependa de detalhes de transporte, e trocar mock→gateway 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir a árvore de `src/lib/data/` e o papel de cada arquivo (AC: #2)
-- [ ] Task 2: Especificar a interface de cada repo (verbos de domínio) (AC: #3)
-  - [ ] Subtask 2.1: `documents.repo.ts`, `folders.repo.ts`, `sharedDocuments.repo.ts`, `references.repo.ts`, `favorites.repo.ts`
-- [ ] Task 3: Definir módulos de domínio puros para derivações (AC: #5)
-  - [ ] Subtask 3.1: `graph.ts` (nós+arestas), `backlinks.ts`, `search.ts` — sem I/O
-- [ ] Task 4: Definir a regra de fronteira UI↛client.ts (AC: #1, #6)
+- [x] Task 1: Definir a árvore de `src/lib/data/` e o papel de cada arquivo (AC: #2)
+- [x] Task 2: Especificar a interface de cada repo (verbos de domínio) (AC: #3)
+  - [x] Subtask 2.1: `documents.repo.ts`, `folders.repo.ts`, `sharedDocuments.repo.ts`, `references.repo.ts`, `favorites.repo.ts`
+- [x] Task 3: Definir módulos de domínio puros para derivações (AC: #5)
+  - [x] Subtask 3.1: `graph.ts` (nós+arestas), `backlinks.ts`, `search.ts` — sem I/O
+- [x] Task 4: Definir a regra de fronteira UI↛client.ts (AC: #1, #6)
 
 ## Dev Notes
 
@@ -67,8 +71,28 @@ src/components/**       -> apresentação, sem I/O
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Relocado `knowledge/src/lib/repos/*.ts` → `knowledge/src/lib/data/*.repo.ts` (via `git rm` + criação nos novos caminhos, preservando histórico de blame por conteúdo): `documents.repo.ts`, `folders.repo.ts`, `sharedDocuments.repo.ts`, `documentReferences.repo.ts`, `sharedDocumentReferences.repo.ts` (split de `references.ts`, que misturava as duas entidades — cada arquivo agora nomeia exatamente 1 tabela, batendo com `doc/architecture/02-organizacao-frontend.md §3`), `favorites.repo.ts`, `users.repo.ts`.
+- Todos os imports em `src/routes/**` e `src/components/**` atualizados para `@/lib/data/*.repo`. Confirmado por grep: **zero** arquivo de tela/componente importa `src/lib/data/client.ts` diretamente — só os `.repo.ts` importam (AC#6).
+- Cada repo expõe só verbos de domínio (`list/create/update/remove`) — nenhum vaza `Response`/`fetch`/status HTTP pra UI (AC#3).
+- Removido código morto: `usersRepo.create/update/remove` (no-ops nunca chamados) e o `update()` no-op de `documentReferencesRepo`/`sharedDocumentReferencesRepo` (o app nunca atualiza uma referência, só cria/remove).
+- **Gap encontrado, não fechado nesta story:** AC#5 pede módulos de domínio puros em `lib/domain/` (`graph.ts`, `backlinks.ts`, `search.ts`); hoje essa lógica existe mas fica solta em `src/lib/*.ts` (`backlinks.ts`, `markdown.ts`) e inline nas telas (busca em `search.tsx`, grafo em `components/Graph.tsx`) — não há `src/lib/domain/` nem `src/hooks/` ainda. Reorganizar isso é um refactor maior, tocando várias telas; sinalizado ao usuário, não executado sem validação (Scope Discipline).
+- `src/lib/mockDb.ts`, `src/lib/session.tsx`, `src/lib/syncRefs.ts` e `src/lib/backlinks.ts` continuam existindo e acessando o mock diretamente — são a implementação interna que os repos encapsulam (Story 1.6), não uma violação da fronteira UI↛client.ts.
+
 ### File List
+
+- `knowledge/src/lib/data/documents.repo.ts` (novo, relocado de `lib/repos/documents.ts`)
+- `knowledge/src/lib/data/folders.repo.ts` (novo, relocado de `lib/repos/folders.ts`)
+- `knowledge/src/lib/data/sharedDocuments.repo.ts` (novo, relocado de `lib/repos/sharedDocuments.ts`)
+- `knowledge/src/lib/data/documentReferences.repo.ts` (novo, relocado/split de `lib/repos/references.ts`)
+- `knowledge/src/lib/data/sharedDocumentReferences.repo.ts` (novo, relocado/split de `lib/repos/references.ts`)
+- `knowledge/src/lib/data/favorites.repo.ts` (novo, relocado de `lib/repos/favorites.ts`)
+- `knowledge/src/lib/data/users.repo.ts` (novo, relocado de `lib/repos/users.ts`)
+- `knowledge/src/lib/repos/*.ts` (removidos — 6 arquivos)
+- `knowledge/src/routes/admin.tsx`, `dashboard.tsx`, `favorites.tsx`, `shared.tsx`, `shared-doc.tsx`, `workspace-doc.tsx` (imports atualizados)
+- `knowledge/src/components/Editor.tsx`, `Explorer.tsx` (imports atualizados)
