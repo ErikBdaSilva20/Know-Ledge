@@ -5,6 +5,7 @@ import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";
+import { handleDomainError } from "@/lib/handleError";
 import type { Scope } from "@/lib/types";
 import { Code2, Eye, Save } from "lucide-react";
 import { Button } from "./ui/button";
@@ -74,14 +75,20 @@ export function Editor({ scope, id, readOnly }: Props) {
   useEffect(() => {
     if (!dirty || !doc) return;
     const t = setTimeout(async () => {
-      if (scope === "personal") {
-        await documentsRepo.update(doc.id, { title, content });
-      } else {
-        await sharedDocumentsRepo.update(doc.id, { title, content });
+      try {
+        if (scope === "personal") {
+          await documentsRepo.update(doc.id, { title, content });
+        } else {
+          await sharedDocumentsRepo.update(doc.id, { title, content });
+        }
+        syncAllRefsFor(scope, doc.id);
+        setDirty(false);
+        setSavedAt(new Date());
+      } catch (err) {
+        // Keep `dirty` true — the next edit (or a manual retry) re-triggers
+        // this effect instead of silently losing the pending change.
+        handleDomainError(err);
       }
-      syncAllRefsFor(scope, doc.id);
-      setDirty(false);
-      setSavedAt(new Date());
     }, 500);
     return () => clearTimeout(t);
   }, [dirty, title, content, doc?.id, scope]);

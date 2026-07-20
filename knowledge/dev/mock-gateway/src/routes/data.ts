@@ -48,7 +48,11 @@ async function validateReferenceTarget(
         ])
       : await pool.query(`select 1 from shared_documents where id = $1`, [targetDocumentId]);
   if (res.rowCount === 0) {
-    throw new ApiError(404, "not_found", `Reference target ${targetScope}/${targetDocumentId} not found`);
+    throw new ApiError(
+      404,
+      "not_found",
+      `Reference target ${targetScope}/${targetDocumentId} not found`,
+    );
   }
 }
 
@@ -145,10 +149,10 @@ dataRoutes.patch("/:table/:id", async (c) => {
     : `where id = $${values.length + 1}`;
   const whereValues = restrictToOwner ? [id, user.id] : [id];
 
-  const res = await pool.query(
-    `update ${table} set ${setClause} ${whereClause} returning *`,
-    [...values, ...whereValues],
-  );
+  const res = await pool.query(`update ${table} set ${setClause} ${whereClause} returning *`, [
+    ...values,
+    ...whereValues,
+  ]);
   if (res.rowCount === 0) throw new ApiError(404, "not_found", `${table}/${id} not found`);
   return c.json(res.rows[0]);
 });

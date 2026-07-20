@@ -1,6 +1,10 @@
+---
+baseline_commit: 2029dfc
+---
+
 # Story 5.1: Envelope de erro padrão e tradução na camada de dados
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **a UI trate falhas de forma previsível, sem vazar internals nem depend
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir o envelope de erro canônico do gateway (AC: #1, #2)
-- [ ] Task 2: Definir os tipos de erro de domínio (discriminated union) em `errors.ts` (AC: #3)
-- [ ] Task 3: Definir o contrato "repos só lançam erro de domínio" (AC: #4, #5)
-- [ ] Task 4: Propagar `request_id` até o erro de domínio (AC: #6) — linkar Story 5.3
+- [x] Task 1: Definir o envelope de erro canônico do gateway (AC: #1, #2)
+- [x] Task 2: Definir os tipos de erro de domínio (discriminated union) em `errors.ts` (AC: #3)
+- [x] Task 3: Definir o contrato "repos só lançam erro de domínio" (AC: #4, #5)
+- [x] Task 4: Propagar `request_id` até o erro de domínio (AC: #6) — linkar Story 5.3
 
 ## Dev Notes
 
@@ -44,8 +48,23 @@ so that **a UI trate falhas de forma previsível, sem vazar internals nem depend
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Rollout de `handleDomainError` aplicado só em `Editor.tsx` (auto-save) e `Explorer.tsx` (criar/renomear/excluir/mover) — os demais call-sites de repo em outras telas ainda não têm tratamento. Verificação em runtime contra um gateway real não foi feita (Docker inacessível nesta sessão). Status `review`, não `done`.
 
 ### Completion Notes List
 
+- Detalhe completo em `doc/architecture/04-tratamento-de-erros.md §1`. Resumo: envelope `{error:{code,message,request_id}}` implementado no mock-gateway (`errors.ts`); `knowledge/src/lib/data/errors.ts` traduz em `DomainError` (1 classe, campo `type` discriminante — AC#3); `client.ts`'s `api()` é o único ponto de tradução, repos nunca veem `Response`/status (AC#4, #5); `request_id` propagado via header `X-Request-Id` (AC#6, Story 5.3).
+- `knowledge/src/lib/handleError.ts` (novo, editável) centraliza a reação de UI e já está em uso real, não só definido.
+
 ### File List
+
+- `knowledge/src/lib/data/errors.ts` (novo, protegido)
+- `knowledge/src/lib/data/client.ts` (usa `errors.ts`, timeout, retry-on-GET)
+- `knowledge/src/lib/handleError.ts` (novo, editável)
+- `knowledge/src/components/Editor.tsx`, `Explorer.tsx` (chamadas críticas com try/catch)
+- `knowledge/masi.template.json` (`errors.ts` protegido, `handleError.ts` editável)
+- `knowledge/dev/mock-gateway/src/errors.ts` (envelope + tradução pg)
+- `doc/architecture/04-tratamento-de-erros.md` (novo)

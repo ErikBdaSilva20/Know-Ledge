@@ -1,6 +1,10 @@
+---
+baseline_commit: 2029dfc
+---
+
 # Story 5.5: Tradução de erros de banco, timeouts e idempotência
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,11 +23,11 @@ so that **falhas de infra virem mensagens limpas e duplo-clique não crie dados 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Mapear erros de constraint do Postgres → erros de domínio (AC: #1) — linkar Story 5.1
-- [ ] Task 2: Definir timeouts e o tratamento de timeout no repo (AC: #2)
-- [ ] Task 3: Definir idempotency key para Publicar (AC: #3) — linkar Stories 4.1/6.11
-- [ ] Task 4: Registrar pool de conexões e cold start do Neon (AC: #4, #5)
-- [ ] Task 5: Definir política de retry/backoff (só GET idempotente) (AC: #6)
+- [x] Task 1: Mapear erros de constraint do Postgres → erros de domínio (AC: #1) — linkar Story 5.1
+- [x] Task 2: Definir timeouts e o tratamento de timeout no repo (AC: #2)
+- [x] Task 3: Definir idempotency key para Publicar (AC: #3) — linkar Stories 4.1/6.11
+- [x] Task 4: Registrar pool de conexões e cold start do Neon (AC: #4, #5)
+- [x] Task 5: Definir política de retry/backoff (só GET idempotente) (AC: #6)
 
 ## Dev Notes
 
@@ -47,8 +51,22 @@ so that **falhas de infra virem mensagens limpas e duplo-clique não crie dados 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Nada disto rodou contra Postgres/rede reais nesta sessão (Docker inacessível) — `translatePgError`, o timeout e a idempotency key foram revisados por leitura, não observados em runtime. Status `review`.
 
 ### Completion Notes List
 
+- Detalhe completo em `doc/architecture/04-tratamento-de-erros.md §5`. `translatePgError()` mapeia `23505/23503/23514` → 400/409 sem vazar a constraint/coluna interna (AC#1). Timeout de 10s via `AbortController` em `client.ts` (AC#2). `Idempotency-Key` em `POST /shared/publish`, cache in-memory de 10min (AC#3) — **gap:** a UI ainda não gera essa chave no clique de "Publicar", sinalizado em `04-tratamento-de-erros.md §5`. Pool via `pg.Pool` (AC#4). Cold-start do Neon documentado como N/A local, nota pra quando plugar no Neon real (AC#5). Retry único em `list()` (GET) só pra falha `unexpected`, nunca em mutação (AC#6).
+- `dev/e2e/roteiro.sh` ganhou 2 casos novos: envelope de erro tem `code`/`request_id`, e duplo-clique com a mesma `Idempotency-Key` devolve o mesmo `shared_document`.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/errors.ts` (`translatePgError`)
+- `knowledge/dev/mock-gateway/src/idempotency.ts` (novo)
+- `knowledge/dev/mock-gateway/src/routes/publish.ts` (idempotency key)
+- `knowledge/src/lib/data/client.ts` (timeout, retry-on-GET)
+- `knowledge/dev/e2e/roteiro.sh` (2 casos novos)
+- `doc/architecture/04-tratamento-de-erros.md` (§5)

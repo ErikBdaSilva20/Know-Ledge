@@ -3,7 +3,13 @@ import { Hono, type Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 import { pool } from "../db.js";
 import { ApiError } from "../errors.js";
-import { createSession, destroySession, getSessionUser, hashPassword, verifyPassword } from "../auth.js";
+import {
+  createSession,
+  destroySession,
+  getSessionUser,
+  hashPassword,
+  verifyPassword,
+} from "../auth.js";
 import { SESSION_COOKIE } from "../middleware.js";
 
 export const authRoutes = new Hono();

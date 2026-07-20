@@ -25,11 +25,12 @@ A **ÚNICA fonte-da-verdade do progresso** é o arquivo
    **ordem recomendada (Seção 4)**.
 3. Abra o arquivo dela em `implementation-artifacts/<arquivo>.md` e execute.
 
-> Estado em 2026-07-21: Épicos 1-4 `done`; Épico 7 adiantado fora de ordem (harness
-> `knowledge/dev/` — docker-compose + mock-gateway + seed + roteiro E2E) e em `review`
-> (código pronto, verificação em runtime pendente — rodar na máquina do Erik, Docker
-> Desktop não estava acessível no ambiente onde foi construído). Próxima: **Épico 5**
-> (Tratamento de Erros), começando pela Story 5.1 (`implementation-artifacts/5-1-envelope-de-erro-padrao.md`).
+> Estado em 2026-07-22: Épicos 1-4 `done`. Épicos 5 e 7 implementados e em `review`
+> (código pronto — envelope de erro, status map, logging, cascade, timeout/retry/
+> idempotência — verificação em runtime pendente, rodar na máquina do Erik: Docker
+> Desktop não estava acessível no ambiente onde isto foi construído). Próxima:
+> **Épico 6** (Bloco de Validação), começando pela Story 6.1
+> (`implementation-artifacts/6-1-validacao-schema-no-boundary.md`).
 
 ---
 

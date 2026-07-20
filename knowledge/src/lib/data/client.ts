@@ -3,6 +3,7 @@
 // masi-ai-orquestration scaffold. Repos (`*.repo.ts`) are the only consumers.
 
 import type { Role } from "../types";
+import { DomainError, domainErrorFromResponse, networkDomainError } from "./errors";
 
 export interface Session {
   user: { id: string; name: string; email: string } | null;
@@ -37,29 +38,51 @@ function previewTable<R>(name: string): R[] {
   return (fixtures[name] as R[] | undefined) ?? [];
 }
 
-export class GatewayError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-  ) {
-    super(message);
-    this.name = "GatewayError";
-  }
+// Story 5.5 AC#2 — a hung request must fail, not spin forever.
+const REQUEST_TIMEOUT_MS = 10_000;
+
+function sleep(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Every failure funnels through here as a DomainError (Story 5.1 AC#3/#4) —
+// callers (repos) never see a Response, a fetch exception, or a status code.
 async function api<T>(method: string, path: string, body?: unknown): Promise<T> {
   const { gatewayUrl, tenantId } = resolveConfig();
-  const res = await fetch(`${gatewayUrl}${path}`, {
-    method,
-    credentials: "include",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Tenant-Id": tenantId,
-    },
-    body: body === undefined ? undefined : JSON.stringify(body),
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let res: Response;
+  try {
+    res = await fetch(`${gatewayUrl}${path}`, {
+      method,
+      credentials: "include",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Tenant-Id": tenantId,
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err) {
+    if (err instanceof DOMException && err.name === "AbortError") {
+      throw networkDomainError("A requisição demorou demais. Tente de novo.");
+    }
+    throw networkDomainError("Não foi possível falar com o servidor.");
+  } finally {
+    clearTimeout(timeoutId);
+  }
+
   if (!res.ok) {
-    throw new GatewayError(`${method} ${path} failed with ${res.status}`, res.status);
+    const requestId = res.headers.get("X-Request-Id") ?? undefined;
+    let message = `${method} ${path} failed with ${res.status}`;
+    try {
+      const data = await res.json();
+      if (typeof data?.error?.message === "string") message = data.error.message;
+    } catch {
+      // Body wasn't JSON (or was empty) — fall back to the generic message above.
+    }
+    throw domainErrorFromResponse(res.status, message, requestId);
   }
   if (res.status === 204) return undefined as T;
   return (await res.json()) as T;
@@ -68,9 +91,20 @@ async function api<T>(method: string, path: string, body?: unknown): Promise<T> 
 export const db = {
   table<R = unknown>(name: string) {
     return {
-      list: (): Promise<R[]> => {
-        if (isPreview()) return Promise.resolve(previewTable<R>(name));
-        return api<R[]>("GET", `/data/${name}`);
+      // Story 5.5 AC#6 — retry once on a transport-level failure (network
+      // drop, 5xx). GET is idempotent, so this is always safe; create/update/
+      // remove below never retry — a retried POST could duplicate data.
+      list: async (): Promise<R[]> => {
+        if (isPreview()) return previewTable<R>(name);
+        try {
+          return await api<R[]>("GET", `/data/${name}`);
+        } catch (err) {
+          if (err instanceof DomainError && err.type === "unexpected") {
+            await sleep(300);
+            return api<R[]>("GET", `/data/${name}`);
+          }
+          throw err;
+        }
       },
       create: (input: Partial<R>): Promise<R> => api<R>("POST", `/data/${name}`, input),
       update: (id: string, patch: Partial<R>): Promise<R> =>

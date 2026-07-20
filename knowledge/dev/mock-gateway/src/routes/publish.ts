@@ -2,6 +2,7 @@ import { Hono, type Context } from "hono";
 import { pool } from "../db.js";
 import { ApiError } from "../errors.js";
 import { requireAuth, requireTenant } from "../middleware.js";
+import { getCached, setCached } from "../idempotency.js";
 import type { SessionUser } from "../auth.js";
 
 type Env = { Variables: { user: SessionUser } };
@@ -19,6 +20,16 @@ publishRoutes.post("/publish", async (c: Context) => {
   const user = c.get("user");
   if (user.role === "rep") {
     throw new ApiError(403, "forbidden", "Only manager/admin can publish");
+  }
+
+  // Story 5.5 AC#3 — double-clicking "Publicar" (auto-save + click race, or
+  // just an impatient click) must not create two shared_documents. Scoped by
+  // key alone: good enough for a dev harness, a real gateway would scope by
+  // (user, key) too.
+  const idempotencyKey = c.req.header("Idempotency-Key");
+  if (idempotencyKey) {
+    const cached = getCached(idempotencyKey);
+    if (cached) return c.json(cached.body, cached.status as 201);
   }
 
   let body: unknown;
@@ -46,5 +57,7 @@ publishRoutes.post("/publish", async (c: Context) => {
      values ($1, $2, $3, $4) returning *`,
     [doc.title, doc.content, doc.id, user.id],
   );
-  return c.json(inserted.rows[0], 201);
+  const result = inserted.rows[0];
+  if (idempotencyKey) setCached(idempotencyKey, 201, result);
+  return c.json(result, 201);
 });

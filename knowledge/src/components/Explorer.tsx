@@ -17,6 +17,7 @@ import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -96,33 +97,41 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const toggle = (id: string) => setOpenFolders((s) => ({ ...s, [id]: !s[id] }));
 
   const createDoc = async (ownerId: string, folderId: string | null) => {
-    const d = await documentsRepo.create({
-      owner_id: ownerId,
-      folder_id: folderId,
-      title: "Sem título",
-      content: "",
-    });
-    if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
-    navigate(`/workspace/${d.id}`);
+    try {
+      const d = await documentsRepo.create({
+        owner_id: ownerId,
+        folder_id: folderId,
+        title: "Sem título",
+        content: "",
+      });
+      if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
+      navigate(`/workspace/${d.id}`);
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   // Create folder inline: no prompt. Folder is created with a placeholder name and
   // immediately enters rename mode. If the user commits an empty name, the pending
   // folder is deleted (folders cannot be saved without a name).
   const createFolder = async (ownerId: string, parentId: string | null) => {
-    const f = await foldersRepo.create({
-      owner_id: ownerId,
-      parent_id: parentId,
-      name: "Nova pasta",
-    });
-    if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
-    setPendingNewFolders((s) => {
-      const n = new Set(s);
-      n.add(f.id);
-      return n;
-    });
-    setRenaming({ kind: "folder", id: f.id });
-    setRenameValue("");
+    try {
+      const f = await foldersRepo.create({
+        owner_id: ownerId,
+        parent_id: parentId,
+        name: "Nova pasta",
+      });
+      if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
+      setPendingNewFolders((s) => {
+        const n = new Set(s);
+        n.add(f.id);
+        return n;
+      });
+      setRenaming({ kind: "folder", id: f.id });
+      setRenameValue("");
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   const startRename = (kind: "folder" | "document", id: string, current: string) => {
@@ -135,9 +144,43 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     const v = renameValue.trim();
     const isPendingNew = renaming.kind === "folder" && pendingNewFolders.has(renaming.id);
 
-    if (!v) {
-      // Empty name: for a brand-new folder, delete it (can't save without a name).
+    try {
+      if (!v) {
+        // Empty name: for a brand-new folder, delete it (can't save without a name).
+        if (isPendingNew) {
+          await foldersRepo.remove(renaming.id);
+          setPendingNewFolders((s) => {
+            const n = new Set(s);
+            n.delete(renaming.id);
+            return n;
+          });
+        }
+        // For an existing item, empty name is just a no-op cancel.
+        setRenaming(null);
+        return;
+      }
+
+      if (renaming.kind === "folder") await foldersRepo.update(renaming.id, { name: v });
+      else await documentsRepo.update(renaming.id, { title: v });
+
       if (isPendingNew) {
+        setPendingNewFolders((s) => {
+          const n = new Set(s);
+          n.delete(renaming.id);
+          return n;
+        });
+      }
+      setRenaming(null);
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
+  };
+
+  const cancelRename = async () => {
+    if (!renaming) return;
+    try {
+      // Cancelling a brand-new folder without a name → delete it.
+      if (renaming.kind === "folder" && pendingNewFolders.has(renaming.id) && !renameValue.trim()) {
         await foldersRepo.remove(renaming.id);
         setPendingNewFolders((s) => {
           const n = new Set(s);
@@ -145,36 +188,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
           return n;
         });
       }
-      // For an existing item, empty name is just a no-op cancel.
       setRenaming(null);
-      return;
+    } catch (err) {
+      handleDomainError(err, navigate);
     }
-
-    if (renaming.kind === "folder") await foldersRepo.update(renaming.id, { name: v });
-    else await documentsRepo.update(renaming.id, { title: v });
-
-    if (isPendingNew) {
-      setPendingNewFolders((s) => {
-        const n = new Set(s);
-        n.delete(renaming.id);
-        return n;
-      });
-    }
-    setRenaming(null);
-  };
-
-  const cancelRename = async () => {
-    if (!renaming) return;
-    // Cancelling a brand-new folder without a name → delete it.
-    if (renaming.kind === "folder" && pendingNewFolders.has(renaming.id) && !renameValue.trim()) {
-      await foldersRepo.remove(renaming.id);
-      setPendingNewFolders((s) => {
-        const n = new Set(s);
-        n.delete(renaming.id);
-        return n;
-      });
-    }
-    setRenaming(null);
   };
 
   const canDragFolder = (f: Folder) => !!user && f.owner_id === user.id;
@@ -195,8 +212,12 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     if (!canDropOnTarget(targetFolder.owner_id)) return;
     if (isDescendant(allFolders, targetFolder.id, dragged.id)) return;
     if (dragged.parent_id === targetFolder.id) return;
-    await foldersRepo.update(draggedId, { parent_id: targetFolder.id });
-    setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+    try {
+      await foldersRepo.update(draggedId, { parent_id: targetFolder.id });
+      setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   const handleDropOnRoot = async (e: React.DragEvent, ownerId: string) => {
@@ -208,7 +229,11 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     const dragged = folders.find((f) => f.id === draggedId);
     if (!dragged || dragged.owner_id !== user.id) return;
     if (dragged.parent_id === null) return;
-    await foldersRepo.update(draggedId, { parent_id: null });
+    try {
+      await foldersRepo.update(draggedId, { parent_id: null });
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   const renderFolder = (
@@ -288,7 +313,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               onNewDoc={() => createDoc(folder.owner_id, folder.id)}
               onNewFolder={() => createFolder(folder.owner_id, folder.id)}
               onRename={() => startRename("folder", folder.id, folder.name)}
-              onDelete={() => foldersRepo.remove(folder.id)}
+              onDelete={() =>
+                foldersRepo.remove(folder.id).catch((err) => handleDomainError(err, navigate))
+              }
               itemName={folder.name}
               isFolder
             />
@@ -336,7 +363,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         )}
         <FolderMenu
           onRename={() => startRename("document", doc.id, doc.title)}
-          onDelete={() => documentsRepo.remove(doc.id)}
+          onDelete={() =>
+            documentsRepo.remove(doc.id).catch((err) => handleDomainError(err, navigate))
+          }
           itemName={doc.title || "Sem título"}
         />
       </div>

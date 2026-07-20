@@ -1,6 +1,10 @@
+---
+baseline_commit: 2029dfc
+---
+
 # Story 5.2: Mapa de status HTTP por modo de falha
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -26,10 +30,10 @@ so that **o front reaja corretamente (redirect no 401, toast no 403, etc.) e a s
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir a tabela status × significado (AC: #1)
-- [ ] Task 2: Mapear cada modo de falha do produto ao status (AC: #2)
-- [ ] Task 3: Decidir e documentar a política 403 vs 404 (AC: #3)
-- [ ] Task 4: Definir o mapeamento status → ação de UI (AC: #4)
+- [x] Task 1: Redigir a tabela status × significado (AC: #1)
+- [x] Task 2: Mapear cada modo de falha do produto ao status (AC: #2)
+- [x] Task 3: Decidir e documentar a política 403 vs 404 (AC: #3)
+- [x] Task 4: Definir o mapeamento status → ação de UI (AC: #4)
 
 ## Dev Notes
 
@@ -51,8 +55,18 @@ so that **o front reaja corretamente (redirect no 401, toast no 403, etc.) e a s
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não verificado contra gateway real em runtime (Docker inacessível). 422/429 estão reservados no mapa mas não implementados (Épico 6 é onde validação semântica/enum entra). Status `review`.
 
 ### Completion Notes List
 
+- Mapa completo em `doc/architecture/04-tratamento-de-erros.md §2`. 403 vs 404 (AC#3) implementado, não só decidido: `dataRoutes.patch`/`.delete` em `knowledge/dev/mock-gateway/src/routes/data.ts` devolvem 404 uniforme pra `rep` tocando registro de outro dono (mesmo tratamento de "não existe").
+- Mapeamento status→ação de UI (AC#4) implementado em `knowledge/src/lib/handleError.ts`: `unauthorized`→redirect login, resto→toast.
+
 ### File List
+
+- `doc/architecture/04-tratamento-de-erros.md` (§2)
+- `knowledge/src/lib/handleError.ts`

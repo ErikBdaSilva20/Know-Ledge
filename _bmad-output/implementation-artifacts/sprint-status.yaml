@@ -9,7 +9,7 @@
 #   done           -> concluída, revisada e (quando aplicável) verificada em runtime
 # Observação: a partir do Épico 1 esta fase passou a incluir código real, não só planejamento.
 
-last_updated: 2026-07-21
+last_updated: 2026-07-22
 
 development_status:
   # E1 — Fundação, Contrato & Camada de Dados
@@ -44,12 +44,12 @@ development_status:
   4-3-limites-do-generico: done
 
   # E5 — Tratamento de Erros (importantíssimo)
-  epic-5: backlog
-  5-1-envelope-de-erro-padrao: ready-for-dev
-  5-2-mapa-status-http: ready-for-dev
-  5-3-logging-correlation-id: ready-for-dev
-  5-4-integridade-referencial-cascade: ready-for-dev
-  5-5-traducao-erros-db-timeouts: ready-for-dev
+  epic-5: review
+  5-1-envelope-de-erro-padrao: review
+  5-2-mapa-status-http: review
+  5-3-logging-correlation-id: review
+  5-4-integridade-referencial-cascade: done
+  5-5-traducao-erros-db-timeouts: review
 
   # E6 — Bloco de Validação (atômico)
   epic-6: backlog

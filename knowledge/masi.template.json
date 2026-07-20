@@ -9,14 +9,44 @@
   "auth": { "provider": "better-auth", "roles": ["admin", "manager", "rep"] },
   "screens": [
     { "id": "login", "route": "/login", "title": "Entrar", "file": "src/routes/login" },
-    { "id": "dashboard", "route": "/dashboard", "title": "Dashboard", "file": "src/routes/dashboard" },
-    { "id": "workspace", "route": "/workspace", "title": "Meu Vault", "file": "src/routes/workspace" },
-    { "id": "workspace-doc", "route": "/workspace/:docId", "title": "Documento", "file": "src/routes/workspace-doc" },
-    { "id": "shared", "route": "/shared", "title": "Base Compartilhada", "file": "src/routes/shared" },
-    { "id": "shared-doc", "route": "/shared/:docId", "title": "Documento Compartilhado", "file": "src/routes/shared-doc" },
+    {
+      "id": "dashboard",
+      "route": "/dashboard",
+      "title": "Dashboard",
+      "file": "src/routes/dashboard"
+    },
+    {
+      "id": "workspace",
+      "route": "/workspace",
+      "title": "Meu Vault",
+      "file": "src/routes/workspace"
+    },
+    {
+      "id": "workspace-doc",
+      "route": "/workspace/:docId",
+      "title": "Documento",
+      "file": "src/routes/workspace-doc"
+    },
+    {
+      "id": "shared",
+      "route": "/shared",
+      "title": "Base Compartilhada",
+      "file": "src/routes/shared"
+    },
+    {
+      "id": "shared-doc",
+      "route": "/shared/:docId",
+      "title": "Documento Compartilhado",
+      "file": "src/routes/shared-doc"
+    },
     { "id": "search", "route": "/search", "title": "Busca", "file": "src/routes/search" },
     { "id": "graph", "route": "/graph", "title": "Grafo", "file": "src/routes/graph" },
-    { "id": "favorites", "route": "/favorites", "title": "Favoritos", "file": "src/routes/favorites" },
+    {
+      "id": "favorites",
+      "route": "/favorites",
+      "title": "Favoritos",
+      "file": "src/routes/favorites"
+    },
     { "id": "recent", "route": "/recent", "title": "Recentes", "file": "src/routes/recent" },
     { "id": "admin", "route": "/admin", "title": "Administração", "file": "src/routes/admin" }
   ],
@@ -26,12 +56,14 @@
       "src/components/**",
       "src/lib/data/*.repo.ts",
       "src/lib/format.ts",
+      "src/lib/handleError.ts",
       "src/styles.css"
     ],
     "protect": [
       "src/lib/data/client.ts",
       "src/lib/data/types.gen.ts",
       "src/lib/data/dataSource.ts",
+      "src/lib/data/errors.ts",
       "src/lib/mockDb.ts",
       "src/lib/session.tsx",
       "src/lib/auth.tsx",

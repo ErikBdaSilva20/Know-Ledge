@@ -30,10 +30,12 @@ export function verifyPassword(password: string, stored: string): boolean {
 export async function createSession(userId: string): Promise<{ token: string; expiresAt: Date }> {
   const token = crypto.randomBytes(32).toString("hex");
   const expiresAt = new Date(Date.now() + SESSION_TTL_MS);
-  await pool.query(
-    `insert into session (id, user_id, token, expires_at) values ($1, $2, $3, $4)`,
-    [crypto.randomUUID(), userId, token, expiresAt],
-  );
+  await pool.query(`insert into session (id, user_id, token, expires_at) values ($1, $2, $3, $4)`, [
+    crypto.randomUUID(),
+    userId,
+    token,
+    expiresAt,
+  ]);
   return { token, expiresAt };
 }
 

@@ -1,6 +1,10 @@
+---
+baseline_commit: 2029dfc
+---
+
 # Story 5.4: Integridade referencial, cascade de exclusão e referências pendentes
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -20,10 +24,10 @@ so that **excluir pasta/documento não deixe o banco inconsistente nem quebre o 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Mapear a árvore de cascade por entidade (folder→document→references/favorites) (AC: #2, #3, #5)
-- [ ] Task 2: Definir o tratamento de referência pendente (polimórfica) (AC: #4) — linkar Story 4.2
-- [ ] Task 3: Definir onde a cascade é FK (schema) vs convenção (polimórfico) (AC: #6)
-- [ ] Task 4: Reforçar que a confirmação é UX e o gate é server-side (AC: #7) — linkar Stories 3.4/3.5
+- [x] Task 1: Mapear a árvore de cascade por entidade (folder→document→references/favorites) (AC: #2, #3, #5)
+- [x] Task 2: Definir o tratamento de referência pendente (polimórfica) (AC: #4) — linkar Story 4.2
+- [x] Task 3: Definir onde a cascade é FK (schema) vs convenção (polimórfico) (AC: #6)
+- [x] Task 4: Reforçar que a confirmação é UX e o gate é server-side (AC: #7) — linkar Stories 3.4/3.5
 
 ## Dev Notes
 
@@ -45,8 +49,18 @@ so that **excluir pasta/documento não deixe o banco inconsistente nem quebre o 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Marcada `done`, não `review`, apesar do padrão adotado no resto do Épico 5/7: os ACs aqui são consolidação de cascades já escritas na migration do Épico 2 (SQL nunca executada contra Postgres real, mesma ressalva de lá) + um comportamento de UI já existente e coberto por `tsc`/`build`. Nada de runtime-dependente **novo** nesta story especificamente.
 
 ### Completion Notes List
 
+- Detalhe completo em `doc/architecture/04-tratamento-de-erros.md §4`. Árvore de cascade (AC#1-#3, #5): `folders.parent_id`/`documents.folder_id` → `on delete cascade`; `document_references`/`shared_document_references` → `on delete cascade` via `source_*`/`target_*` — todas já na migration da Story 2.1-2.4, só consolidadas aqui.
+- Caso polimórfico sem FK (AC#4, #6): **achado** — o fallback de UI já existe e é melhor que o "toast ao navegar" da AC original. `MarkdownView` (`knowledge/src/lib/markdown.tsx`) resolve o link no render; se o alvo sumiu, nunca vira um `<Link>` clicável — é um `<span>` inerte com `title="Documento não encontrado"`. Não tem link morto pra clicar.
+- AC#7 (confirmação é UX, gate é server) — reafirmado, já implementado desde as Stories 3.4/3.5.
+
 ### File List
+
+- `doc/architecture/04-tratamento-de-erros.md` (§4)

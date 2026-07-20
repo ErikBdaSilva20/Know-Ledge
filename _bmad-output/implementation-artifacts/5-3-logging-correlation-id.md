@@ -1,6 +1,10 @@
+---
+baseline_commit: 2029dfc
+---
+
 # Story 5.3: Logging estruturado, correlation-id e observabilidade (sem PII)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **falhas sejam diagnosticáveis sem expor dados sensíveis nem depender 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir o formato de log estruturado e os campos (AC: #1, #2)
-- [ ] Task 2: Definir a lista de "nunca logar" (AC: #3)
-- [ ] Task 3: Definir o tratamento de 5xx (stack no server, mensagem no cliente) (AC: #4) — linkar Story 5.1
-- [ ] Task 4: Alinhar observabilidade mínima do tenant-local (AC: #5) — linkar Story 7.1
+- [x] Task 1: Definir o formato de log estruturado e os campos (AC: #1, #2)
+- [x] Task 2: Definir a lista de "nunca logar" (AC: #3)
+- [x] Task 3: Definir o tratamento de 5xx (stack no server, mensagem no cliente) (AC: #4) — linkar Story 5.1
+- [x] Task 4: Alinhar observabilidade mínima do tenant-local (AC: #5) — linkar Story 7.1
 
 ## Dev Notes
 
@@ -44,8 +48,19 @@ so that **falhas sejam diagnosticáveis sem expor dados sensíveis nem depender 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- `docker compose logs -f gateway` (AC#5) não pôde ser verificado ao vivo — stack não subiu nesta sessão. O formato do log foi revisado por leitura de `logging.ts`, não observado rodando. Status `review`.
 
 ### Completion Notes List
 
+- `knowledge/dev/mock-gateway/src/logging.ts` (novo): middleware `requestId` (gera + expõe `X-Request-Id`) e `accessLog` (1 linha JSON por request: `request_id`, `method`, `route`, `status`, `role`, `tenant`, `duration_ms` — nunca corpo/senha/token, AC#1-3).
+- 5xx: stack logado só no servidor via `console.error` em `index.ts`'s `onError`; cliente recebe mensagem amigável + `request_id` (AC#4).
+- Responsabilidade 100% do gateway (AC#6) — o app só propaga `request_id` recebido no `DomainError`, não implementa logging próprio.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/logging.ts` (novo)
+- `knowledge/dev/mock-gateway/src/index.ts` (middlewares + onError atualizado)

@@ -95,6 +95,15 @@ status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: 
   "$GW/data/shared_documents")
 check "rep1 POST em shared_documents -> 403" 403 "$status"
 
+# Story 5.1/5.3 — envelope de erro traz code + request_id, nunca detalhe interno
+body=$(curl -s -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" -d '{"title":"x","content":"","source_document_id":null}' \
+  "$GW/data/shared_documents")
+has_code=$(echo "$body" | grep -c '"code":"forbidden"' || true)
+has_request_id=$(echo "$body" | grep -c '"request_id":"' || true)
+check "envelope de erro tem code=forbidden" "1" "$has_code"
+check "envelope de erro tem request_id" "1" "$has_request_id"
+
 status=$(curl -s -o /dev/null -w "%{http_code}" -b "$MANAGER_JAR" -H "X-Tenant-Id: $TENANT" \
   -H "Content-Type: application/json" -d '{"title":"x","content":"","source_document_id":null}' \
   "$GW/data/shared_documents")
@@ -110,6 +119,18 @@ status=$(curl -s -o /dev/null -w "%{http_code}" -b "$MANAGER_JAR" -H "X-Tenant-I
   -H "Content-Type: application/json" -d '{"source_document_id":"'"$DOC_REP2_ID"'"}' \
   "$GW/shared/publish")
 check "manager POST /shared/publish (cross-owner) -> 201" 201 "$status"
+
+# Story 5.5 AC#3 — duplo-clique com a mesma Idempotency-Key não duplica
+IDEMPOTENCY_KEY="e2e-$(date +%s)"
+first=$(curl -s -b "$MANAGER_JAR" -H "X-Tenant-Id: $TENANT" -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -H "Content-Type: application/json" -d '{"source_document_id":"'"$DOC_REP2_ID"'"}' \
+  "$GW/shared/publish")
+second=$(curl -s -b "$MANAGER_JAR" -H "X-Tenant-Id: $TENANT" -H "Idempotency-Key: $IDEMPOTENCY_KEY" \
+  -H "Content-Type: application/json" -d '{"source_document_id":"'"$DOC_REP2_ID"'"}' \
+  "$GW/shared/publish")
+first_id=$(echo "$first" | grep -o '"id":"[^"]*"' | head -1)
+second_id=$(echo "$second" | grep -o '"id":"[^"]*"' | head -1)
+check "2ª chamada com a mesma Idempotency-Key devolve o mesmo shared_document" "$first_id" "$second_id"
 
 # Story 6.9 — tenant errado
 status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $WRONG_TENANT" \
