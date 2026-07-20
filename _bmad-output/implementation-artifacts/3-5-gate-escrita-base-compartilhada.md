@@ -1,6 +1,10 @@
+---
+baseline_commit: 0e6e968
+---
+
 # Story 3.5: Gate de escrita na Base Compartilhada (tabela sem owner = só admin/manager)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **um rep nunca publique, edite ou remova conteúdo da base compartilhada
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir o gate de escrita ownerless → admin/manager (AC: #1, #5)
-- [ ] Task 2: Mapear a regra de produto para o comportamento do gateway (AC: #2, #3)
-- [ ] Task 3: Casos de teste de escrita negada para rep (AC: #4) — linkar Story 7.5
-- [ ] Task 4: Delimitar o que é gate automático (esta story) vs a rota Publicar (Story 4.1) (AC: #6)
+- [x] Task 1: Redigir o gate de escrita ownerless → admin/manager (AC: #1, #5)
+- [x] Task 2: Mapear a regra de produto para o comportamento do gateway (AC: #2, #3)
+- [x] Task 3: Casos de teste de escrita negada para rep (AC: #4) — linkar Story 7.5
+- [x] Task 4: Delimitar o que é gate automático (esta story) vs a rota Publicar (Story 4.1) (AC: #6)
 
 ## Dev Notes
 
@@ -44,8 +48,17 @@ so that **um rep nunca publique, edite ou remova conteúdo da base compartilhada
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Gate ownerless documentado (AC#1, #5) reaproveitando o achado já registrado em `doc/architecture/01-stack-e-modelagem.md §5.1` — não é código novo, é o comportamento padrão do gateway pra qualquer tabela sem `owner_id` (`shared_documents`/`shared_document_references`, Story 2.4).
+- Auditoria: botão Publicar (`workspace-doc.tsx`, `shared.tsx`) e editar/remover na base compartilhada (`Editor.tsx`, `admin.tsx`, `shared-doc.tsx`) só **renderizam** condicionados a `can("publishShared"/"editShared")` — a chamada de rede em si não checa papel localmente (AC#2, #3).
+- **Delimitação (AC#6):** esta story cobre só o gate automático de escrita direta em `shared_documents` via `/data/shared_documents`. A operação de **Publicar** (copiar um `document` pessoal pra `shared_documents`, setando `published_by` a partir da sessão) é a Story 4.1 — ainda não implementada, é a próxima do Épico 4.
+- Caso de teste de escrita negada pra rep (AC#4) especificado em `03-seguranca-zero-trust.md §5`/§6 — não executado (sem gateway local).
+
 ### File List
+
+- `doc/architecture/03-seguranca-zero-trust.md` (§5, §6)

@@ -1,6 +1,10 @@
+---
+baseline_commit: 0e6e968
+---
+
 # Story 3.2: Papel é resolvido no servidor — `role` no front é só cosmético
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **trocar o papel no cliente não conceda nenhuma permissão real**.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir o invariante "role é cosmético" (AC: #1, #3)
-- [ ] Task 2: Mapear `auth.me()` → `{ user, role }` e a remoção do seletor mock (AC: #2)
-- [ ] Task 3: Listar todos os controles gated na UI e confirmar o gate server-side correspondente (AC: #4, #6)
-- [ ] Task 4: Definir caso de teste de papel forjado (AC: #5) — linkar Story 7.5
+- [x] Task 1: Redigir o invariante "role é cosmético" (AC: #1, #3)
+- [x] Task 2: Mapear `auth.me()` → `{ user, role }` e a remoção do seletor mock (AC: #2)
+- [x] Task 3: Listar todos os controles gated na UI e confirmar o gate server-side correspondente (AC: #4, #6)
+- [x] Task 4: Definir caso de teste de papel forjado (AC: #5) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -44,8 +48,16 @@ so that **trocar o papel no cliente não conceda nenhuma permissão real**.
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- **Decisão registrada:** este repo não tem `src/lib/auth.tsx` separado como o exemplo genérico da fundação sugere — `knowledge/src/lib/session.tsx` já cumpre esse papel (hidrata `{user,role}` via `auth.me()` em modo gateway, entregue na Story 1.6). Criar um `auth.tsx` paralelo duplicaria a fonte de sessão; documentado em `03-seguranca-zero-trust.md §2` para não ser "recriado" por engano depois.
+- Auditoria de todos os `can(...)` no código (`AdminPage`, `RoleSwitcher`, botão Publicar em `workspace-doc.tsx`/`shared.tsx`, editar/remover em `Editor.tsx`/`admin.tsx`): **nenhum** é consultado para decidir se uma chamada de rede "deveria" funcionar — todos só condicionam renderização/redirect. A chamada de rede sempre é disparada e é o gateway quem aceita/nega (AC#3, #4, #6).
+- Caso de teste de papel forjado (AC#5) especificado em `03-seguranca-zero-trust.md §2` e no checklist §6 — não executado nesta sessão (sem gateway local).
+
 ### File List
+
+- `doc/architecture/03-seguranca-zero-trust.md` (§2)

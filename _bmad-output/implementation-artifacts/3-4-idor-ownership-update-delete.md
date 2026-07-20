@@ -1,6 +1,10 @@
+---
+baseline_commit: 0e6e968
+---
+
 # Story 3.4: Prevenção de IDOR — ownership em `update`/`remove` por id
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **um rep não consiga alterar/excluir documento de outro usuário adivin
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir o invariante de ownership em mutações por id (AC: #1, #2)
-- [ ] Task 2: Enumerar os vetores de IDOR reais dado "sem get-by-id" (AC: #4)
-- [ ] Task 3: Definir política de status para negação (403 vs 404) sem vazar existência (AC: #6) — linkar Story 5.2
-- [ ] Task 4: Casos de teste IDOR cross-owner (AC: #3) — linkar Story 7.5
+- [x] Task 1: Redigir o invariante de ownership em mutações por id (AC: #1, #2)
+- [x] Task 2: Enumerar os vetores de IDOR reais dado "sem get-by-id" (AC: #4)
+- [x] Task 3: Definir política de status para negação (403 vs 404) sem vazar existência (AC: #6) — linkar Story 5.2
+- [x] Task 4: Casos de teste IDOR cross-owner (AC: #3) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -44,8 +48,17 @@ so that **um rep não consiga alterar/excluir documento de outro usuário adivin
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Vetores de IDOR enumerados (AC#4): só `update`/`remove` por id, já que não há `get-by-id` (leitura já cortada por visibilidade, Story 3.3).
+- Auditoria de todo `*Repo.update(id, patch)`/`*Repo.remove(id)` chamado pela UI (`Editor.tsx`, `Explorer.tsx`, `workspace-doc.tsx`, `shared-doc.tsx`, `admin.tsx`, `favorites.tsx`): nenhum decide posse localmente nem manda `owner_id` — só `id` + patch de negócio. A decisão é 100% do gateway (AC#1, #2).
+- Política de status 403 vs 404 (AC#6) é decisão da Story 5.2, fora deste repo — só referenciada aqui, não decidida.
+- Caso de teste IDOR cross-owner (AC#3) especificado em `03-seguranca-zero-trust.md §4`/§6 — não executado (sem gateway local).
+
 ### File List
+
+- `doc/architecture/03-seguranca-zero-trust.md` (§4)

@@ -25,6 +25,7 @@ Como o produto é construído sobre a fundação MasIA: stack, schema, modelo de
 |---|---|---|
 | 01 | [`01-stack-e-modelagem.md`](./architecture/01-stack-e-modelagem.md) | Stack técnica, limitações do CRUD genérico, schema SQL completo, matriz de visibilidade, base compartilhada |
 | 02 | [`02-organizacao-frontend.md`](./architecture/02-organizacao-frontend.md) | Scaffold base, estrutura de pastas, camadas (data/domain/hooks/components/screens), fluxo de dados, cache, mapeamento `editable.allow`/`protect` |
+| 03 | [`03-seguranca-zero-trust.md`](./architecture/03-seguranca-zero-trust.md) | Os 5 invariantes de autorização do gateway (owner_id, role, visibilidade, IDOR, gate ownerless), auditoria de conformidade do frontend, checklist de testes negativos para a Story 7.5 |
 
 ### `architecture/Decisions/` — ADRs
 

@@ -1,6 +1,10 @@
+---
+baseline_commit: 0e6e968
+---
+
 # Story 3.3: Visibilidade por papel aplicada pelo gateway (rep vê só o seu; manager/admin veem tudo)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **um rep nunca receba dados de outro usuário mesmo que a tela pedisse a
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar a matriz de visibilidade por tabela × papel (AC: #1, #4)
-- [ ] Task 2: Esclarecer front-filter (UX) vs gateway-filter (segurança) (AC: #2, #6)
-- [ ] Task 3: Especificar a indicação de dono no Workspace de manager/admin (AC: #3)
-- [ ] Task 4: Definir casos de teste de visibilidade (AC: #5) — linkar Story 7.5
+- [x] Task 1: Documentar a matriz de visibilidade por tabela × papel (AC: #1, #4)
+- [x] Task 2: Esclarecer front-filter (UX) vs gateway-filter (segurança) (AC: #2, #6)
+- [x] Task 3: Especificar a indicação de dono no Workspace de manager/admin (AC: #3)
+- [x] Task 4: Definir casos de teste de visibilidade (AC: #5) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -53,8 +57,17 @@ so that **um rep nunca receba dados de outro usuário mesmo que a tela pedisse a
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Matriz de visibilidade (AC#1, #4) já existia em `doc/architecture/01-stack-e-modelagem.md §4` (Épico 2) — não duplicada; `03-seguranca-zero-trust.md §3` referencia e adiciona a distinção front-filter (UX) vs gateway-filter (segurança) que faltava (AC#2, #6).
+- AC#3 (indicação de dono no Workspace de manager/admin) **já implementado**: `admin.tsx` mostra `userMap.get(d.owner_id)?.name` por documento; confirmado por leitura de código, sem mudança necessária.
+- Auditoria confirmou: `search.tsx` e `admin.tsx` filtram localmente só para busca/UX (`q`, `ownerFilter`) sobre o que o gateway devolveu — nenhum filtro local é o único mecanismo impedindo vazamento entre usuários.
+- Casos de teste de visibilidade (AC#5) especificados em `03-seguranca-zero-trust.md §3`/§6 — não executados (sem gateway local).
+
 ### File List
+
+- `doc/architecture/03-seguranca-zero-trust.md` (§3)

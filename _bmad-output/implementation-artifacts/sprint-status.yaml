@@ -7,7 +7,7 @@
 #   done           -> concluída e revisada
 # Observação: esta fase é SÓ planejamento/arquitetura (nada codado).
 
-last_updated: 2026-07-20
+last_updated: 2026-07-21
 
 development_status:
   # E1 — Fundação, Contrato & Camada de Dados
@@ -28,12 +28,12 @@ development_status:
   2-5-types-gen-contrato-repos: done
 
   # E3 — Autorização & Zero-Trust
-  epic-3: backlog
-  3-1-owner-id-derivado-da-sessao: ready-for-dev
-  3-2-papel-server-side-ui-cosmetica: ready-for-dev
-  3-3-visibilidade-por-papel: ready-for-dev
-  3-4-idor-ownership-update-delete: ready-for-dev
-  3-5-gate-escrita-base-compartilhada: ready-for-dev
+  epic-3: done
+  3-1-owner-id-derivado-da-sessao: done
+  3-2-papel-server-side-ui-cosmetica: done
+  3-3-visibilidade-por-papel: done
+  3-4-idor-ownership-update-delete: done
+  3-5-gate-escrita-base-compartilhada: done
 
   # E4 — Extensões do Gateway
   epic-4: backlog

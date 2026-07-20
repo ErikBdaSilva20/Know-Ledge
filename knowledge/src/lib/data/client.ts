@@ -82,7 +82,8 @@ export const db = {
 
 // Better-Auth REST surface (default routes). `role` comes from the tenant's
 // membership record; the gateway is the source of truth — this value is UI-only
-// (Importantdoc.md §B8).
+// (Importantdoc.md §B8, doc/architecture/03-seguranca-zero-trust.md §2). Never
+// gate a network call on `role`/`can()` — only use it to hide/show UI.
 export const auth = {
   async me(): Promise<Session> {
     if (isPreview()) return { user: null, role: null };

@@ -1,6 +1,10 @@
+---
+baseline_commit: 0e6e968
+---
+
 # Story 3.1: `owner_id` é derivado da sessão pelo gateway — nunca vem do front
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **um cliente malicioso não consiga criar/atribuir registros em nome de 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir o invariante "owner_id from session" (AC: #1, #4)
-- [ ] Task 2: Especificar o comportamento do gateway ao receber `owner_id` do front (ignora/rejeita) (AC: #2) — linkar Story 6.2
-- [ ] Task 3: Garantir que os repos não enviam `owner_id` (AC: #3)
-- [ ] Task 4: Definir o caso de teste negativo para o tenant-local (AC: #6) — linkar Story 7.5
+- [x] Task 1: Redigir o invariante "owner_id from session" (AC: #1, #4)
+- [x] Task 2: Especificar o comportamento do gateway ao receber `owner_id` do front (ignora/rejeita) (AC: #2) — linkar Story 6.2
+- [x] Task 3: Garantir que os repos não enviam `owner_id` (AC: #3)
+- [x] Task 4: Definir o caso de teste negativo para o tenant-local (AC: #6) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -44,8 +48,17 @@ so that **um cliente malicioso não consiga criar/atribuir registros em nome de 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Este e as demais 4 stories do Épico 3 documentam comportamento do **gateway** (`Cerebra-AI/tenant-gateway`, repo separado) — nada aqui é implementável neste frontend. O trabalho real desta story foi **auditar** o código já entregue no Épico 1 contra o invariante e **documentar** formalmente em `doc/architecture/03-seguranca-zero-trust.md §1`.
+- Auditoria: confirmado por leitura que `documents.repo.ts`, `folders.repo.ts`, `documentReferences.repo.ts`, `favorites.repo.ts` fazem destructure-and-drop de `owner_id` antes de `POST` em modo gateway (Story 1.6); nenhuma tela (`Explorer.tsx`, `dashboard.tsx`) tem campo de "atribuir a outro usuário" — todo `create()` usa `user.id` da sessão local.
+- Caso de teste negativo (AC#6) especificado em `03-seguranca-zero-trust.md §1` e no checklist §6 — **não executado** (sem gateway local nesta sessão); fica pronto pra Story 7.5 automatizar.
+
 ### File List
+
+- `doc/architecture/03-seguranca-zero-trust.md` (novo — §1)
+- `knowledge/src/lib/data/client.ts` (comentário apontando pro documento)
