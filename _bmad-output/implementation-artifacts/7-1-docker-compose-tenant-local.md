@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 7.1: Docker Compose do tenant-local (Postgres + gateway) — dev-only
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,9 +23,9 @@ so that **eu exercite login, CRUD, RBAC e Publicar de verdade antes de plugar no
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Escrever o `docker-compose.yml` (Postgres + gateway) em `dev/` (AC: #1, #2)
-- [ ] Task 2: Definir a ordem de bootstrap do schema (Better-Auth → migration do app) (AC: #3) — linkar Story 7.3
-- [ ] Task 3: Definir `.env.example` local sem segredos (AC: #4)
+- [x] Task 1: Escrever o `docker-compose.yml` (Postgres + gateway) em `dev/` (AC: #1, #2)
+- [x] Task 2: Definir a ordem de bootstrap do schema (Better-Auth → migration do app) (AC: #3) — linkar Story 7.3
+- [x] Task 3: Definir `.env.example` local sem segredos (AC: #4)
 - [ ] Task 4: Validar acesso e logs (AC: #5, #6)
 
 ## Dev Notes
@@ -44,8 +48,23 @@ so that **eu exercite login, CRUD, RBAC e Publicar de verdade antes de plugar no
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- `docker compose up` / `docker ps` retornaram erro de conexão com o daemon (`open //./pipe/dockerDesktopLinuxEngine`) — Docker Desktop não estava acessível no sandbox desta sessão. Não foi possível validar Task 4 (AC#5, #6) nesta sessão.
 
 ### Completion Notes List
 
+- `knowledge/dev/docker-compose.yml`: serviço `postgres` (16-alpine) + serviço `gateway` (build de `./mock-gateway`), com `depends_on: condition: service_healthy` (AC#1).
+- Rotulado dev-only: vive inteiro em `knowledge/dev/`, fora de `masi.template.json`/`editable`/`protect`, com aviso explícito em `dev/README.md` (AC#2).
+- Ordem de bootstrap (AC#3): `docker-entrypoint-initdb.d/00_better_auth.sql` (tabelas `user`/`session`) roda antes de `01_business_schema.sql` (cópia montada de `../supabase/migrations/0001_business_schema.sql`) — Postgres executa scripts de init em ordem alfabética, garantido pelo prefixo numérico.
+- `.env.example` sem segredo real — senha do Postgres é um placeholder óbvio (`kv_local_dev`), tudo local e descartável com o volume (AC#4).
+- **Task 4 não verificada nesta sessão** (ver Debug Log) — `npx tsc --noEmit` do mock-gateway está limpo, mas `docker compose up` real, acesso em `localhost:8787` e `docker compose logs` ficam pendentes de rodar na máquina do Erik. Status marcado `review`, não `done`, por isso.
+
 ### File List
+
+- `knowledge/dev/docker-compose.yml` (novo)
+- `knowledge/dev/.env.example` (novo)
+- `knowledge/dev/init-db/00_better_auth.sql` (novo)
+- `knowledge/dev/README.md` (novo)

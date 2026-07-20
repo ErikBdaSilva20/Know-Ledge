@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 7-2: Escolha do gateway local — real (alta fidelidade) vs mock (contrato mínimo)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -21,10 +25,10 @@ so that **eu tenha o melhor equilíbrio entre fidelidade e independência do rep
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar as opções A e B com trade-offs (AC: #1)
-- [ ] Task 2: Definir a lista de invariantes que o mock deve honrar (AC: #2, #5)
-- [ ] Task 3: Confirmar a neutralidade da escolha para o app (AC: #4) — linkar Story 7.4
-- [ ] Task 4: Registrar a recomendação (AC: #6)
+- [x] Task 1: Documentar as opções A e B com trade-offs (AC: #1)
+- [x] Task 2: Definir a lista de invariantes que o mock deve honrar (AC: #2, #5)
+- [x] Task 3: Confirmar a neutralidade da escolha para o app (AC: #4) — linkar Story 7.4
+- [x] Task 4: Registrar a recomendação (AC: #6)
 
 ## Dev Notes
 
@@ -46,8 +50,18 @@ so that **eu tenha o melhor equilíbrio entre fidelidade e independência do rep
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- **Decisão: Opção B (mock-gateway)** — `Cerebra-AI/tenant-gateway` é privado e não está acessível neste ambiente (AC#1, #6).
+- Todos os invariantes da checklist (AC#2) foram **implementados**, não só listados, em `knowledge/dev/mock-gateway/`: owner_id/published_by da sessão (`routes/data.ts`, `routes/publish.ts`), papel server-side (`middleware.ts` + `tables.ts`), visibilidade por papel (`GET` filtra por `owner_id` quando `role==='rep'`), IDOR (WHERE atômico no `PATCH`/`DELETE`, 404 uniforme), gate ownerless (`POST` recusa `rep`), validação de tenant (`requireTenant`, Story 6.9), status de erro básico (`errors.ts`).
+- Rotulado explicitamente como test double em `dev/README.md`, com o aviso de drift (AC#3, #5): "antes de confiar em produção, revalide contra o gateway real".
+- Neutralidade pro app (AC#4): confirmada por construção — o app só enxerga `VITE_GATEWAY_URL`/`VITE_DATA_SOURCE` (Story 1.3/1.6); não sabe nem precisa saber se o outro lado é o mock ou o gateway real.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/` (implementação completa do test double)
+- `knowledge/dev/README.md` (decisão e trade-offs documentados)

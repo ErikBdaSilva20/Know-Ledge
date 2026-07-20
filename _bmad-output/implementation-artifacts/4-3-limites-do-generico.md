@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 4.3: Limites do modo genérico — o que NÃO precisa de backend novo (e o que precisaria)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,9 +23,9 @@ so that **a equipe não prometa extensões que não são necessárias nem ignore
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Tabela "cabe no genérico" × tela (AC: #1, #4, #5)
-- [ ] Task 2: Tabela "exige extensão" com justificativa (AC: #2)
-- [ ] Task 3: Checklist negativo dos gatilhos de extensão que NÃO se aplicam (AC: #3, #6)
+- [x] Task 1: Tabela "cabe no genérico" × tela (AC: #1, #4, #5)
+- [x] Task 2: Tabela "exige extensão" com justificativa (AC: #2)
+- [x] Task 3: Checklist negativo dos gatilhos de extensão que NÃO se aplicam (AC: #3, #6)
 
 ## Dev Notes
 
@@ -43,8 +47,19 @@ so that **a equipe não prometa extensões que não são necessárias nem ignore
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Confirmado por auditoria de código (não só por leitura do brief): Dashboard, Workspace, Busca, Grafo/Backlinks, Favoritos, Recentes e leitura da Base Compartilhada já rodam 100% sobre `db.table()` genérico (repos do Épico 1) — nenhum precisou de rota extra (AC#1).
+- **Reavaliado à luz do Épico 3 e da implementação real (achado registrado na Story 4.1):** Publicar tecnicamente **cabe** no genérico dado o RBAC já implementado (visibilidade cross-owner pro manager já vem do `list`; `published_by` já é server-derived em qualquer `create`) — a extensão (`POST /shared/publish`) existe por **conveniência** (1 round-trip), não por necessidade estrutural. Atualizo o AC#2 com essa nuance em vez de reafirmar cegamente "exige extensão".
+- Validação cross-scope de referências (Story 4.2) **não** virou rota — foi resolvida como validação inline no `POST /data/document_references` do mock-gateway, sem precisar de endpoint dedicado.
+- Checklist negativo (AC#3, #6) confirmado por inspeção do produto: sem realtime, sem chat/WhatsApp, sem cron/jobs, sem webhook/pagamento, sem upload/mídia (ADR-004, markdown-only), sem página pública sem login. Nenhum gatilho de extensão de fundação se aplica.
+- Recentes é estado local (`localStorage`, `knowledge/src/lib/recents.ts`) — confirmado, nunca tocou o banco (AC#4). Busca é só título, em memória (`search.tsx`) — confirmado (AC#5).
+- **Conclusão do mapa de esforço:** o backend por-app real seria pequeno — 1 migration (Épico 2, pronta) + costura de dados (Épico 1, pronta) + no máximo 1 extensão realmente opcional (Publicar). Isso reduz a estimativa de esforço do que o rascunho original da story sugeria.
+
 ### File List
+
+- (nenhum arquivo novo — conclusão apoiada no código dos Épicos 1-4 já entregue)

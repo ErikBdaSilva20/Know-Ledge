@@ -4,8 +4,10 @@
 #   backlog        -> story ainda não detalhada
 #   ready-for-dev  -> story com contexto completo, pronta para a equipe de backend
 #   in-progress    -> em implementação
-#   done           -> concluída e revisada
-# Observação: esta fase é SÓ planejamento/arquitetura (nada codado).
+#   review         -> código entregue e ACs endereçados, mas com verificação em runtime
+#                     pendente (ex.: precisa do docker compose rodando na máquina do Erik)
+#   done           -> concluída, revisada e (quando aplicável) verificada em runtime
+# Observação: a partir do Épico 1 esta fase passou a incluir código real, não só planejamento.
 
 last_updated: 2026-07-21
 
@@ -36,10 +38,10 @@ development_status:
   3-5-gate-escrita-base-compartilhada: done
 
   # E4 — Extensões do Gateway
-  epic-4: backlog
-  4-1-rota-publicar-base-compartilhada: ready-for-dev
-  4-2-integridade-referencias-cross-scope: ready-for-dev
-  4-3-limites-do-generico: ready-for-dev
+  epic-4: done
+  4-1-rota-publicar-base-compartilhada: done
+  4-2-integridade-referencias-cross-scope: done
+  4-3-limites-do-generico: done
 
   # E5 — Tratamento de Erros (importantíssimo)
   epic-5: backlog
@@ -65,9 +67,11 @@ development_status:
   6-12-exclusao-permanente-server-side: ready-for-dev
 
   # E7 — Ambiente Local (tenant-local via Docker)
-  epic-7: backlog
-  7-1-docker-compose-tenant-local: ready-for-dev
-  7-2-mock-gateway-vs-gateway-real: ready-for-dev
-  7-3-seed-tenant-better-auth-papeis: ready-for-dev
-  7-4-config-client-gateway-local: ready-for-dev
-  7-5-roteiro-teste-e2e-local: ready-for-dev
+  # Adiantado fora de ordem a pedido do Erik (Épico 7 normalmente viria por último;
+  # trazido pra cá pra já existir um jeito de testar o Épico 4 localmente).
+  epic-7: review
+  7-1-docker-compose-tenant-local: review
+  7-2-mock-gateway-vs-gateway-real: done
+  7-3-seed-tenant-better-auth-papeis: review
+  7-4-config-client-gateway-local: review
+  7-5-roteiro-teste-e2e-local: review

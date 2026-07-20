@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 7.4: Apontar o app ao gateway local via config (sem tocar em `client.ts`)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **o mesmo app rode contra mock, tenant-local ou gateway real só trocand
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir as variáveis de config para o tenant-local (AC: #1, #2)
+- [x] Task 1: Definir as variáveis de config para o tenant-local (AC: #1, #2)
 - [ ] Task 2: Validar credentials/X-Tenant-Id/CORS contra localhost (AC: #3, #6)
-- [ ] Task 3: Documentar a separação do branch PREVIEW (AC: #4)
-- [ ] Task 4: Escrever `.env.local.example` (AC: #5)
+- [x] Task 3: Documentar a separação do branch PREVIEW (AC: #4)
+- [x] Task 4: Escrever `.env.local.example` (AC: #5)
 
 ## Dev Notes
 
@@ -44,8 +48,18 @@ so that **o mesmo app rode contra mock, tenant-local ou gateway real só trocand
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Task 2 (handshake real de CORS/credentials contra o gateway local) não executado — depende do stack no ar (Story 7.1), que não subiu neste sandbox. Status `review`.
 
 ### Completion Notes List
 
+- `knowledge/.env.local.example`: `VITE_GATEWAY_URL=http://localhost:8787`, `VITE_TENANT_ID=local-dev`, `VITE_DATA_SOURCE=gateway` — usa a cadeia de resolução do `client.ts` já existente (Story 1.3), **zero edição** no arquivo protegido (AC#1, #2).
+- CORS do lado do mock-gateway (`dev/mock-gateway/src/index.ts`): `cors({ origin: process.env.DEV_ORIGIN, credentials: true })` — origem configurável via `dev/.env`, nunca wildcard (AC#3, #6 — revisado por leitura de código, não por handshake real).
+- PREVIEW (AC#4): documentado em `client.ts` (Story 1.3) e reafirmado em `dev/README.md` — o tenant-local é o fluxo real (`isPreview()` fica `false`), branch PREVIEW é só do editor Sandpack, caminho totalmente separado.
+
 ### File List
+
+- `knowledge/.env.local.example` (novo)

@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 4.2: Integridade de referências cross-scope (regras de link)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **não existam links inválidos que quebrem o grafo ou vazem docs pessoa
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Redigir a matriz de regras de link (personal/shared, mesmo-dono, existência) (AC: #1, #2, #3)
-- [ ] Task 2: Definir a validação de existência/visibilidade do alvo (AC: #4) — linkar Story 6.6
-- [ ] Task 3: Definir o tratamento de referência pendente (dangling) no front e no servidor (AC: #5) — linkar Story 5.4
-- [ ] Task 4: Recomendar schema-only vs extensão do gateway para a validação cross-scope (AC: #6)
+- [x] Task 1: Redigir a matriz de regras de link (personal/shared, mesmo-dono, existência) (AC: #1, #2, #3)
+- [x] Task 2: Definir a validação de existência/visibilidade do alvo (AC: #4) — linkar Story 6.6
+- [x] Task 3: Definir o tratamento de referência pendente (dangling) no front e no servidor (AC: #5) — linkar Story 5.4
+- [x] Task 4: Recomendar schema-only vs extensão do gateway para a validação cross-scope (AC: #6)
 
 ## Dev Notes
 
@@ -43,8 +47,17 @@ so that **não existam links inválidos que quebrem o grafo ou vazem docs pessoa
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- **Recomendação (AC#6) e implementação no mock:** validação cross-scope no `POST /data/document_references`, não só no schema — `validateReferenceTarget()` em `knowledge/dev/mock-gateway/src/routes/data.ts`: `target_scope='personal'` exige que `target_document_id` exista em `documents` **com o mesmo `owner_id` do autor** (AC#1); `target_scope='shared'` exige que exista em `shared_documents` (AC#2, visível a todos por ser lookup). Alvo inexistente/de outro dono → 404, sem CHECK/FK conseguir expressar isso sozinho (polimórfico, Story 2.3).
+- `shared_document_references` já é garantida só por FK real (shared→shared, Story 2.4) — não precisou de validação adicional (AC#3).
+- Dangling reference (AC#5, front): tratamento no front é responsabilidade da Story 5.4 (integridade referencial / cascade), fora do escopo desta story; aqui só documentamos que o servidor não garante FK pro campo polimórfico, então o front precisa checar existência ao navegar um link.
+- **Alcance real:** isto vive no `dev/mock-gateway/` (test double local). A validação equivalente na fundação real precisa ser confirmada/replicada pelo dono do `tenant-gateway` — mesma ressalva da Story 4.1.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/routes/data.ts` (`validateReferenceTarget`)

@@ -1,6 +1,10 @@
+---
+baseline_commit: accddbf
+---
+
 # Story 7.5: Roteiro de teste E2E local dos fluxos (incl. casos negativos de segurança)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -27,10 +31,10 @@ so that **eu confirme que a segurança realmente vive no backend antes de plugar
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Escrever os casos de fluxo feliz com passos e asserts (AC: #1)
-- [ ] Task 2: Escrever os casos negativos de segurança com status esperado (AC: #2, #4)
-- [ ] Task 3: Amarrar cada caso ao seed/compose reproduzível (AC: #3)
-- [ ] Task 4: Marcar o roteiro como gate de zero-trust e a ressalva de drift (AC: #5, #6)
+- [x] Task 1: Escrever os casos de fluxo feliz com passos e asserts (AC: #1)
+- [x] Task 2: Escrever os casos negativos de segurança com status esperado (AC: #2, #4)
+- [x] Task 3: Amarrar cada caso ao seed/compose reproduzível (AC: #3)
+- [x] Task 4: Marcar o roteiro como gate de zero-trust e a ressalva de drift (AC: #5, #6)
 
 ## Dev Notes
 
@@ -53,8 +57,21 @@ so that **eu confirme que a segurança realmente vive no backend antes de plugar
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- `bash -n` (syntax-check) do script passou; a execução real contra o stack **não** rodou nesta sessão (Docker Desktop inacessível — mesma limitação das Stories 7.1/7.3/7.4). Status `review` até alguém rodar de verdade.
 
 ### Completion Notes List
 
+- Foi além do "roteiro em prosa": `knowledge/dev/e2e/roteiro.sh` é um script `curl` **executável** que faz login como rep1/rep2/manager (seed) e roda:
+  - Fluxos felizes (AC#1): rep1 lista os próprios documentos, rep1 cria um documento.
+  - Todos os 8 casos negativos do checklist §6 de `03-seguranca-zero-trust.md` (AC#2, #4): owner_id injetado ignorado, rep não vê doc de outro, manager vê tudo, IDOR em PATCH/DELETE → 404, escrita ownerless negada/permitida, Publicar negado/permitido (cross-owner), tenant errado → 403, sem sessão → 401.
+  - Cada `check()` compara status HTTP esperado vs. real e imprime PASS/FAIL; sai com código de erro se algo falhar (dá pra plugar em CI depois).
+- Amarrado ao seed (AC#3): usa os ids/emails fixos de `seed.ts` — comentado no topo do script pra manter em sincronia se o seed mudar.
+- Marcado como gate de zero-trust com a ressalva de drift do mock (AC#5, #6) — mesmo texto de `dev/README.md`/Story 7.2, repetido no cabeçalho do script pra quem só abrir o `.sh`.
+
 ### File List
+
+- `knowledge/dev/e2e/roteiro.sh` (novo)

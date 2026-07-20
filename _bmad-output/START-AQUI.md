@@ -25,8 +25,11 @@ A **ÚNICA fonte-da-verdade do progresso** é o arquivo
    **ordem recomendada (Seção 4)**.
 3. Abra o arquivo dela em `implementation-artifacts/<arquivo>.md` e execute.
 
-> Enquanto tudo estiver `ready-for-dev` (estado atual: 0/41 concluídas), a próxima é a
-> **Story 1.1** (`implementation-artifacts/1-1-modelo-mental-e-topologia.md`).
+> Estado em 2026-07-21: Épicos 1-4 `done`; Épico 7 adiantado fora de ordem (harness
+> `knowledge/dev/` — docker-compose + mock-gateway + seed + roteiro E2E) e em `review`
+> (código pronto, verificação em runtime pendente — rodar na máquina do Erik, Docker
+> Desktop não estava acessível no ambiente onde foi construído). Próxima: **Épico 5**
+> (Tratamento de Erros), começando pela Story 5.1 (`implementation-artifacts/5-1-envelope-de-erro-padrao.md`).
 
 ---
 

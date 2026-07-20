@@ -20,6 +20,11 @@ dist-ssr
 .wrangler/
 .dev.vars
 
+# Env files with real local values — only *.example variants are tracked.
+.env
+!.env.example
+!.env.local.example
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
