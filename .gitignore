@@ -11,3 +11,9 @@ Thumbs.db
 
 # Local machine-specific Claude settings
 .claude/settings.local.json
+
+#bmad
+
+_bmad 
+.claude
+audit.skill.node_modules

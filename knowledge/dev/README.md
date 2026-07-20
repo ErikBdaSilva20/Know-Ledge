@@ -83,10 +83,10 @@ docker compose up -d --build
 
 ## Verificação feita nesta sessão
 
-TypeScript do mock-gateway compila limpo (`npx tsc --noEmit`). **O
-`docker compose up` não foi executado nesta sessão** — o daemon do Docker
-Desktop não estava acessível no sandbox usado para construir isto. Rode os
-passos acima na sua máquina para o primeiro smoke test real.
+`docker compose up -d --build` rodou com sucesso (postgres saudável, gateway
+ouvindo em `:8787`), seed executado e `dev/e2e/roteiro.sh` passou 22/22 —
+incluindo todos os casos negativos de zero-trust (IDOR, RBAC, tenant
+inválido, sessão ausente).
 
 ## Roteiro de teste (Story 7.5)
 
