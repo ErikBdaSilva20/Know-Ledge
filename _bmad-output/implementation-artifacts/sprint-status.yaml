@@ -7,7 +7,7 @@
 #   done           -> concluída e revisada
 # Observação: esta fase é SÓ planejamento/arquitetura (nada codado).
 
-last_updated: 2026-07-19
+last_updated: 2026-07-20
 
 development_status:
   # E1 — Fundação, Contrato & Camada de Dados
@@ -20,12 +20,12 @@ development_status:
   1-6-costura-mock-para-gateway: done
 
   # E2 — Schema & Migração Neon (§B4)
-  epic-2: backlog
-  2-1-convencoes-schema-b4: ready-for-dev
-  2-2-tabelas-vault-pessoal: ready-for-dev
-  2-3-tabelas-referencias-favoritos: ready-for-dev
-  2-4-tabelas-base-compartilhada: ready-for-dev
-  2-5-types-gen-contrato-repos: ready-for-dev
+  epic-2: done
+  2-1-convencoes-schema-b4: done
+  2-2-tabelas-vault-pessoal: done
+  2-3-tabelas-referencias-favoritos: done
+  2-4-tabelas-base-compartilhada: done
+  2-5-types-gen-contrato-repos: done
 
   # E3 — Autorização & Zero-Trust
   epic-3: backlog

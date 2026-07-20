@@ -1,6 +1,10 @@
 // GENERATED — do not edit by hand.
-// Mirrors the Neon schema defined in doc/architecture/01-stack-e-modelagem.md §3.
-// Regenerate once the Epic 2 migrations (supabase/migrations/0001_business_schema.sql) land.
+// Mirrors knowledge/supabase/migrations/0001_business_schema.sql (Story 2.5).
+// Regenerate whenever that migration changes.
+//
+// `Insert` omits every column the gateway derives server-side (id, owner_id,
+// published_by, created_at, updated_at) — repos ask callers for exactly the
+// fields the front is actually allowed to provide.
 
 export interface Database {
   public: {
@@ -14,6 +18,10 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
+        Insert: {
+          parent_id: string | null;
+          name: string;
+        };
       };
       documents: {
         Row: {
@@ -24,6 +32,11 @@ export interface Database {
           content: string;
           created_at: string;
           updated_at: string;
+        };
+        Insert: {
+          folder_id: string | null;
+          title: string;
+          content?: string;
         };
       };
       shared_documents: {
@@ -36,6 +49,11 @@ export interface Database {
           created_at: string;
           updated_at: string;
         };
+        Insert: {
+          title: string;
+          content: string;
+          source_document_id: string | null;
+        };
       };
       document_references: {
         Row: {
@@ -46,6 +64,11 @@ export interface Database {
           target_document_id: string;
           created_at: string;
         };
+        Insert: {
+          source_document_id: string;
+          target_scope: "personal" | "shared";
+          target_document_id: string;
+        };
       };
       shared_document_references: {
         Row: {
@@ -53,6 +76,10 @@ export interface Database {
           source_shared_document_id: string;
           target_shared_document_id: string;
           created_at: string;
+        };
+        Insert: {
+          source_shared_document_id: string;
+          target_shared_document_id: string;
         };
       };
       favorites: {
@@ -62,6 +89,10 @@ export interface Database {
           document_scope: "personal" | "shared";
           document_id: string;
           created_at: string;
+        };
+        Insert: {
+          document_scope: "personal" | "shared";
+          document_id: string;
         };
       };
     };

@@ -1,6 +1,10 @@
+---
+baseline_commit: 2ef89e5
+---
+
 # Story 2.4: Tabelas da Base Compartilhada — `shared_document` e `shared_document_reference` (ownerless = lookup)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **o gateway as trate como lookup — leitura a todos, escrita só admin/
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: DDL de `shared_document` (sem owner_id) (AC: #1, #4, #5)
-- [ ] Task 2: DDL de `shared_document_reference` (sem owner_id, FKs shared→shared) (AC: #2, #6)
-- [ ] Task 3: Documentar o comportamento lookup do gateway e o mapeamento para a regra de produto (AC: #3)
-- [ ] Task 4: Nota: `published_by` server-derived (linkar Story 4.1) e `source_document_id` como rastreabilidade nullable (AC: #4, #5)
+- [x] Task 1: DDL de `shared_document` (sem owner_id) (AC: #1, #4, #5)
+- [x] Task 2: DDL de `shared_document_reference` (sem owner_id, FKs shared→shared) (AC: #2, #6)
+- [x] Task 3: Documentar o comportamento lookup do gateway e o mapeamento para a regra de produto (AC: #3)
+- [x] Task 4: Nota: `published_by` server-derived (linkar Story 4.1) e `source_document_id` como rastreabilidade nullable (AC: #4, #5)
 
 ## Dev Notes
 
@@ -46,8 +50,17 @@ so that **o gateway as trate como lookup — leitura a todos, escrita só admin/
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- `shared_documents`/`shared_document_references` criadas **sem `owner_id`** — tabela lookup: leitura liberada a qualquer logado, escrita só admin/manager, de graça, sem código de autorização (AC#3, a "joia arquitetural" citada nos Dev Notes).
+- `shared_document_reference` com ambas FKs (`source_shared_document_id`, `target_shared_document_id`) apontando pra `shared_documents(id) on delete cascade` — garante estruturalmente que shared só linka pra shared (AC#6).
+- **Conflito resolvido entre AC#1 (`published_by ... not null`) e o Dev Note ("recomendo `on delete set null`"):** uma coluna `NOT NULL` não pode ser nulada por uma FK action — são mutuamente exclusivos. Segui o AC (contrato formal) e deixei o FK sem cascade/set null (`NO ACTION` padrão do Postgres): apagar um usuário que publicou algo exige reatribuir `published_by` primeiro, o que protege a base compartilhada de perder autoria silenciosamente. Documentado inline na migration.
+- `source_document_id` nullable, sem FK — só rastreabilidade; editar um lado não afeta o outro (cópia independente, AC#5).
+
 ### File List
+
+- `knowledge/supabase/migrations/0001_business_schema.sql` (tabelas `shared_documents`/`shared_document_references`, entregue na Story 2.1)

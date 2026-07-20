@@ -1,6 +1,10 @@
+---
+baseline_commit: 2ef89e5
+---
+
 # Story 2.1: Convenções de schema §B4 (a parte mais importante — seguir à risca)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -20,11 +24,11 @@ so that **o modo genérico do gateway sirva as tabelas automaticamente e nada qu
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Escrever o cabeçalho de convenções da migration (AC: #1, #2, #5, #6)
-- [ ] Task 2: Definir o trigger `touch_updated_at` reutilizável (AC: #3)
-- [ ] Task 3: Checklist de nomes reservados vs. entidades do Knowledge Vault (AC: #4)
-  - [ ] Subtask 3.1: Confirmar que `document`, `folder`, `shared_document`, `document_reference`, `shared_document_reference`, `favorite` não colidem com reservados ✓
-- [ ] Task 4: Padrão canônico de `owner_id` (AC: #7)
+- [x] Task 1: Escrever o cabeçalho de convenções da migration (AC: #1, #2, #5, #6)
+- [x] Task 2: Definir o trigger `touch_updated_at` reutilizável (AC: #3)
+- [x] Task 3: Checklist de nomes reservados vs. entidades do Knowledge Vault (AC: #4)
+  - [x] Subtask 3.1: Confirmar que `documents`, `folders`, `shared_documents`, `document_references`, `shared_document_references`, `favorites` não colidem com reservados ✓
+- [x] Task 4: Padrão canônico de `owner_id` (AC: #7)
 
 ## Dev Notes
 
@@ -57,8 +61,19 @@ create index if not exists idx_tarefas_owner on tarefas(owner_id);
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- Criado `knowledge/supabase/migrations/0001_business_schema.sql`, **idempotente** (`create table/index if not exists`, `create or replace function`, `drop trigger if exists` + `create trigger`) — seguro rodar mais de uma vez (re-provisionamento local via Docker, Epic 7). Não foi executado contra nenhum banco nesta sessão; fica pronto pra rodar quando o Erik subir o Postgres local.
+- **Correção de nomenclatura em relação ao rascunho da story:** a story sugeria nomes de tabela no singular (`document`, `folder`...). Mantido o **plural** (`documents`, `folders`, ...) por já ser o padrão em `doc/architecture/01-stack-e-modelagem.md §3` (Aprovado) e nos repos/tipos entregues no Épico 1 — trocar agora quebraria a costura já feita. Nenhum nome (singular ou plural) colide com os reservados do Better-Auth.
+- `touch_updated_at()` — 1 função reutilizada por `folders`, `documents`, `shared_documents` (únicas 3 tabelas com `updated_at`).
+- `owner_id text not null references "user"(id) on delete cascade` aplicado em toda tabela escrita pelo rep (`folders`, `documents`, `document_references`, `favorites`); `shared_documents`/`shared_document_references` deliberadamente sem `owner_id` (Story 2.4).
+- Migration comentada explicitando que roda **depois** das tabelas do Better-Auth — dependência de ordem documentada no cabeçalho do arquivo.
+- Zero RLS, zero `auth.uid()`, zero `profiles`.
+
 ### File List
+
+- `knowledge/supabase/migrations/0001_business_schema.sql` (novo)

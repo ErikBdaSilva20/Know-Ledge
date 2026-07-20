@@ -1,6 +1,10 @@
+---
+baseline_commit: 2ef89e5
+---
+
 # Story 2.2: Tabelas do vault pessoal — `folder` e `document`
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **cada rep escreva e veja só o próprio vault, com árvore de pastas e 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: DDL de `folder` (AC: #1, #3, #6)
-- [ ] Task 2: DDL de `document` (AC: #2, #3, #5, #6)
-- [ ] Task 3: Definir a política de cascade de exclusão e documentar o efeito na UI (AC: #4) — linkar Story 5.4
-- [ ] Task 4: Índices `idx_folder_owner`, `idx_folder_parent`, `idx_document_owner`, `idx_document_folder`
+- [x] Task 1: DDL de `folder` (AC: #1, #3, #6)
+- [x] Task 2: DDL de `document` (AC: #2, #3, #5, #6)
+- [x] Task 3: Definir a política de cascade de exclusão e documentar o efeito na UI (AC: #4) — linkar Story 5.4
+- [x] Task 4: Índices `idx_folder_owner`, `idx_folder_parent`, `idx_document_owner`, `idx_document_folder`
 
 ## Dev Notes
 
@@ -44,8 +48,18 @@ so that **cada rep escreva e veja só o próprio vault, com árvore de pastas e 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- `folders`/`documents` implementadas em `knowledge/supabase/migrations/0001_business_schema.sql` conforme AC#1/#2, com índices `idx_folders_owner`, `idx_folders_parent`, `idx_documents_owner`, `idx_documents_folder` (AC#3).
+- **Decisão de cascade tomada (AC#4):** `document.folder_id references folders(id) on delete cascade` — excluir uma pasta apaga os documentos dentro dela, batendo com o aviso do produto ("tudo dentro também será excluído", ver Story 5.4). `folder.parent_id` também é `on delete cascade` (auto-referente), permitindo subpastas recursivas.
+- `content text not null default ''` — Markdown puro, sem coluna de tipo/binário (AC#5, ADR-004).
+- Trigger `touch_updated_at` aplicado em ambas (Story 2.1).
+- Índices servem list-then-filter no front, não filtro server-side (Story 1.2) — confirmado nenhuma tela depende de get-by-id.
+
 ### File List
+
+- `knowledge/supabase/migrations/0001_business_schema.sql` (tabelas `folders`/`documents`, entregue na Story 2.1)

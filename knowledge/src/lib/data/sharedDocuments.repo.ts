@@ -2,20 +2,18 @@ import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { SharedDocument } from "../types";
+import type { Database } from "./types.gen";
 
 const table = db.table<SharedDocument>("shared_documents");
+
+type SharedDocumentInsert = Database["public"]["Tables"]["shared_documents"]["Insert"];
 
 export const sharedDocumentsRepo = {
   async list(): Promise<SharedDocument[]> {
     if (isGatewayMode()) return table.list();
     return getState().shared_documents.slice();
   },
-  async create(data: {
-    title: string;
-    content: string;
-    source_document_id: string | null;
-    published_by: string;
-  }): Promise<SharedDocument> {
+  async create(data: SharedDocumentInsert & { published_by: string }): Promise<SharedDocument> {
     if (isGatewayMode()) {
       // published_by is derived from the session by the gateway (Story 3.1).
       const { published_by, ...rest } = data;

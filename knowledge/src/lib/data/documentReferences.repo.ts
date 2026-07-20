@@ -2,15 +2,18 @@ import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { DocumentReference } from "../types";
+import type { Database } from "./types.gen";
 
 const table = db.table<DocumentReference>("document_references");
+
+type DocumentReferenceInsert = Database["public"]["Tables"]["document_references"]["Insert"];
 
 export const documentReferencesRepo = {
   async list(): Promise<DocumentReference[]> {
     if (isGatewayMode()) return table.list();
     return getState().document_references.slice();
   },
-  async create(data: Omit<DocumentReference, "id" | "created_at">): Promise<DocumentReference> {
+  async create(data: DocumentReferenceInsert & { owner_id: string }): Promise<DocumentReference> {
     if (isGatewayMode()) {
       const { owner_id, ...rest } = data;
       return table.create(rest);

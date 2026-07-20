@@ -2,15 +2,18 @@ import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Favorite } from "../types";
+import type { Database } from "./types.gen";
 
 const table = db.table<Favorite>("favorites");
+
+type FavoriteInsert = Database["public"]["Tables"]["favorites"]["Insert"];
 
 export const favoritesRepo = {
   async list(): Promise<Favorite[]> {
     if (isGatewayMode()) return table.list();
     return getState().favorites.slice();
   },
-  async create(data: Omit<Favorite, "id" | "created_at">): Promise<Favorite> {
+  async create(data: FavoriteInsert & { owner_id: string }): Promise<Favorite> {
     if (isGatewayMode()) {
       const { owner_id, ...rest } = data;
       return table.create(rest);

@@ -2,24 +2,28 @@ import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Document } from "../types";
+import type { Database } from "./types.gen";
 
 const table = db.table<Document>("documents");
+
+type DocumentInsert = Database["public"]["Tables"]["documents"]["Insert"];
 
 export const documentsRepo = {
   async list(): Promise<Document[]> {
     if (isGatewayMode()) return table.list();
     return getState().documents.slice();
   },
-  async create(data: Partial<Document> & { owner_id: string; title: string }): Promise<Document> {
+  // owner_id is derived from the session by the gateway — the mock path
+  // still needs it explicitly since there is no real session to derive it from.
+  async create(data: DocumentInsert & { owner_id: string }): Promise<Document> {
     if (isGatewayMode()) {
-      // owner_id is derived from the session by the gateway — never sent by the front.
       const { owner_id, ...rest } = data;
       return table.create(rest);
     }
     const doc: Document = {
       id: genId("d"),
       owner_id: data.owner_id,
-      folder_id: data.folder_id ?? null,
+      folder_id: data.folder_id,
       title: data.title,
       content: data.content ?? "",
       created_at: isoNow(),

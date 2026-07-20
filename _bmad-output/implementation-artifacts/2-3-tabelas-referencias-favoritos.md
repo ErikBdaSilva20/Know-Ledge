@@ -1,6 +1,10 @@
+---
+baseline_commit: 2ef89e5
+---
+
 # Story 2.3: Tabelas filhas escritas pelo rep — `document_reference` e `favorite`
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **o rep consiga criar links e favoritos sem tomar 403 — o gotcha de RB
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: DDL de `document_reference` com `owner_id` + CHECK de `target_scope` (AC: #1, #3, #4)
-- [ ] Task 2: DDL de `favorite` com `owner_id` + CHECK de `document_scope` (AC: #2, #3, #4)
-- [ ] Task 3: Documentar por que `target_document_id` é polimórfico sem FK e como a integridade é garantida (AC: #5) — linkar Story 4.2
-- [ ] Task 4: Índices `idx_docref_owner`, `idx_docref_source`, `idx_favorite_owner`
+- [x] Task 1: DDL de `document_reference` com `owner_id` + CHECK de `target_scope` (AC: #1, #3, #4)
+- [x] Task 2: DDL de `favorite` com `owner_id` + CHECK de `document_scope` (AC: #2, #3, #4)
+- [x] Task 3: Documentar por que `target_document_id` é polimórfico sem FK e como a integridade é garantida (AC: #5) — linkar Story 4.2
+- [x] Task 4: Índices `idx_docref_owner`, `idx_docref_source`, `idx_favorite_owner`
 
 ## Dev Notes
 
@@ -44,8 +48,18 @@ so that **o rep consiga criar links e favoritos sem tomar 403 — o gotcha de RB
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
 
 ### Completion Notes List
 
+- `document_references`/`favorites` implementadas com `owner_id text not null references "user"(id) on delete cascade` — gotcha §B4.1 aplicado (AC#3): sem isso o `rep` tomaria 403 ao criar link/favorito.
+- `CHECK (target_scope in ('personal','shared'))` e `CHECK (document_scope in ('personal','shared'))` no banco, além da validação client-side já existente (defesa em profundidade, AC#4).
+- `target_document_id`/`document_id` **sem FK** (polimórfico: aponta pra `documents` OU `shared_documents` conforme o scope) — documentado inline na migration; integridade real fica pra Story 4.2 (fora do escopo deste app).
+- Índices: `idx_document_references_owner`, `idx_document_references_source`, `idx_favorites_owner`.
+- Adotada a sugestão do Dev Notes: índice único `uq_favorites_owner_doc (owner_id, document_scope, document_id)` — evita favorito duplicado no próprio banco, reforçando a Story 6.6.
+
 ### File List
+
+- `knowledge/supabase/migrations/0001_business_schema.sql` (tabelas `document_references`/`favorites`, entregue na Story 2.1)

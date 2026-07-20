@@ -2,19 +2,18 @@ import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Folder } from "../types";
+import type { Database } from "./types.gen";
 
 const table = db.table<Folder>("folders");
+
+type FolderInsert = Database["public"]["Tables"]["folders"]["Insert"];
 
 export const foldersRepo = {
   async list(): Promise<Folder[]> {
     if (isGatewayMode()) return table.list();
     return getState().folders.slice();
   },
-  async create(data: {
-    owner_id: string;
-    parent_id: string | null;
-    name: string;
-  }): Promise<Folder> {
+  async create(data: FolderInsert & { owner_id: string }): Promise<Folder> {
     if (isGatewayMode()) {
       const { owner_id, ...rest } = data;
       return table.create(rest);
