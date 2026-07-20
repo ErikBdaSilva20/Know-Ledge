@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.4: [VALIDAÇÃO] Enums — `target_scope` e `document_scope`
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **nunca exista um scope inválido que corrompa referências, favoritos, 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir os enums e seus domínios (AC: #1, #2)
-- [ ] Task 2: Garantir dupla validação (schema + CHECK) (AC: #3) — linkar Stories 6.1/2.3
-- [ ] Task 3: Alinhar os tipos TS (união literal) (AC: #4) — linkar Story 2.5
-- [ ] Task 4: Caso de teste de enum inválido (AC: #6)
+- [x] Task 1: Definir os enums e seus domínios (AC: #1, #2)
+- [x] Task 2: Garantir dupla validação (schema + CHECK) (AC: #3) — linkar Stories 6.1/2.3
+- [x] Task 3: Alinhar os tipos TS (união literal) (AC: #4) — linkar Story 2.5
+- [x] Task 4: Caso de teste de enum inválido (AC: #6)
 
 ## Dev Notes
 
@@ -43,8 +47,20 @@ so that **nunca exista um scope inválido que corrompa referências, favoritos, 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`.
 
 ### Completion Notes List
 
+- `target_scope`/`document_scope` são `z.enum(["personal","shared"])` em `schemas.ts` — não `z.string()` (AC#1, #2, #4).
+- Dupla validação (AC#3): schema no gateway (esta story) + `CHECK` no banco (já existia desde a Story 2.3) — nenhuma mudança de schema necessária.
+- Caso de teste (AC#6) novo em `dev/e2e/roteiro.sh`: `target_scope: "group"` → 400.
+- AC#5 (efeito de um scope inválido escapar) já documentado em `doc/architecture/05-validacao.md §2` e no schema original (Story 2.3).
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/schemas.ts`
+- `knowledge/dev/e2e/roteiro.sh` (caso novo)

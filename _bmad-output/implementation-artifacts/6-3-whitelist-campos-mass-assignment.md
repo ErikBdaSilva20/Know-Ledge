@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.3: [VALIDAÇÃO] Whitelist de campos — proteção contra mass-assignment
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -26,9 +30,9 @@ so that **campos desconhecidos ou server-only não sejam gravados via mass-assig
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir a whitelist de create por entidade (AC: #1, #2, #3)
-- [ ] Task 2: Definir a whitelist de update (subconjunto mutável) por entidade (AC: #4)
-- [ ] Task 3: Definir comportamento para campo desconhecido (reject/strip) (AC: #5)
+- [x] Task 1: Definir a whitelist de create por entidade (AC: #1, #2, #3)
+- [x] Task 2: Definir a whitelist de update (subconjunto mutável) por entidade (AC: #4)
+- [x] Task 3: Definir comportamento para campo desconhecido (reject/strip) (AC: #5)
 
 ## Dev Notes
 
@@ -50,8 +54,19 @@ so that **campos desconhecidos ou server-only não sejam gravados via mass-assig
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`.
 
 ### Completion Notes List
 
+- Whitelist de create (AC#1-3) e update (AC#4) batem exatamente com a lista da story, em `schemas.ts`: `folders {parent_id,name}`, `documents {folder_id,title,content}`, `document_references {source_document_id,target_scope,target_document_id}`, `favorites {document_scope,document_id}`, `shared_documents {title,content,source_document_id}` (create; update só `title,content`), `shared_document_references {source_shared_document_id,target_shared_document_id}`.
+- Campo desconhecido (AC#5): `.strict()` do Zod rejeita com 400 — verificado com um novo caso em `dev/e2e/roteiro.sh` ("campo desconhecido no create -> 400").
+- Mesma fonte usada pela Story 6.1 (AC#6) — não há uma segunda whitelist.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/schemas.ts`
+- `knowledge/dev/e2e/roteiro.sh` (caso novo)

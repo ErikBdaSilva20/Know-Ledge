@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.5: [VALIDAÇÃO] Limites de tamanho — título, nome e conteúdo
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **payloads gigantes não estourem memória/custo do Neon nem quebrem o l
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir limites por campo (title, name, content) (AC: #1, #2, #3)
-- [ ] Task 2: Centralizar os limites como constantes (AC: #4)
-- [ ] Task 3: Documentar o impacto no list-then-filter (AC: #5)
-- [ ] Task 4: Delimitar fronteira com payload-size (Story 6.8) (AC: #6)
+- [x] Task 1: Definir limites por campo (title, name, content) (AC: #1, #2, #3)
+- [x] Task 2: Centralizar os limites como constantes (AC: #4)
+- [x] Task 3: Documentar o impacto no list-then-filter (AC: #5)
+- [x] Task 4: Delimitar fronteira com payload-size (Story 6.8) (AC: #6)
 
 ## Dev Notes
 
@@ -44,8 +48,21 @@ so that **payloads gigantes não estourem memória/custo do Neon nem quebrem o l
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`. Números escolhidos (title 300, name 200, content 200KB) são um julgamento razoável, não vieram de um requisito numérico do produto — ajustáveis sem quebrar nada além de `LIMITS` em `schemas.ts`.
 
 ### Completion Notes List
 
+- `LIMITS = { NAME_MAX: 200, TITLE_MAX: 300, CONTENT_MAX: 200_000 }` em `knowledge/dev/mock-gateway/src/schemas.ts` — constantes nomeadas, não valores mágicos espalhados (AC#4).
+- `title`/`name` exigem `min(1)` (não vazio) além do máximo (AC#1). `content` só tem máximo, pode ser vazio (documento novo) (AC#2). `shared_documents` usa os mesmos limites (AC#3).
+- Impacto no list-then-filter (AC#5) documentado em `doc/architecture/05-validacao.md §3` — sem paginação nem filtro server-side, todo `GET` carrega a lista inteira; um `content` sem limite multiplicaria custo em toda tela.
+- Fronteira com Story 6.8 (AC#6): esta story limita **campos**; 6.8 limita o **corpo inteiro** da request — implementadas juntas nesta sessão, mas são checks independentes (schema Zod vs. `hono/body-limit`).
+- Caso de teste novo em `dev/e2e/roteiro.sh`: título com 400 chars (limite 300) → 400.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/schemas.ts`
+- `knowledge/dev/e2e/roteiro.sh` (caso novo)

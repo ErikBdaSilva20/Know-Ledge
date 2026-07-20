@@ -34,16 +34,29 @@ export const documentsRepo = {
     });
     return doc;
   },
-  async update(id: string, patch: Partial<Document>): Promise<void> {
+  // Story 6.11 AC#1 — pass `expectedUpdatedAt` (the value last read) to get
+  // optimistic concurrency: the gateway 409s if someone else saved first
+  // instead of silently overwriting their change. Ignored in mock mode
+  // (single in-memory store, nothing to race against).
+  async update(
+    id: string,
+    patch: Partial<Document>,
+    opts?: { expectedUpdatedAt?: string },
+  ): Promise<Document> {
     if (isGatewayMode()) {
-      await table.update(id, patch);
-      return;
+      const body: Partial<Document> & { expected_updated_at?: string } = { ...patch };
+      if (opts?.expectedUpdatedAt) body.expected_updated_at = opts.expectedUpdatedAt;
+      return table.update(id, body as Partial<Document>);
     }
+    let updated: Document | undefined;
     mutate((s) => {
       const idx = s.documents.findIndex((d) => d.id === id);
       if (idx < 0) return;
       s.documents[idx] = { ...s.documents[idx], ...patch, updated_at: isoNow() };
+      updated = s.documents[idx];
     });
+    if (!updated) throw new Error(`documents/${id} not found`);
+    return updated;
   },
   async remove(id: string): Promise<void> {
     if (isGatewayMode()) {

@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.6: [VALIDAÇÃO] Referências e FKs — alvo existente, visível e do mesmo tenant/dono
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,11 +23,11 @@ so that **não se criem links/pastas apontando para recursos inexistentes ou de 
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Validar `parent_id`/`folder_id` existência + mesmo dono (AC: #1, #2)
-- [ ] Task 2: Validar alvos de referência (source do autor, target existente/visível) (AC: #3) — linkar Story 4.2
-- [ ] Task 3: Validar alvo de favorito (AC: #4)
-- [ ] Task 4: Definir o que é FK-schema vs validação-gateway (AC: #5)
-- [ ] Task 5: Definir unicidade de favorito (AC: #6) — linkar Story 6.11
+- [x] Task 1: Validar `parent_id`/`folder_id` existência + mesmo dono (AC: #1, #2)
+- [x] Task 2: Validar alvos de referência (source do autor, target existente/visível) (AC: #3) — linkar Story 4.2
+- [x] Task 3: Validar alvo de favorito (AC: #4)
+- [x] Task 4: Definir o que é FK-schema vs validação-gateway (AC: #5)
+- [x] Task 5: Definir unicidade de favorito (AC: #6) — linkar Story 6.11
 
 ## Dev Notes
 
@@ -45,8 +49,22 @@ so that **não se criem links/pastas apontando para recursos inexistentes ou de 
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`.
 
 ### Completion Notes List
 
+- **Novo nesta story:** `assertOwnedFolder(folderId, ownerId)` em `routes/data.ts` — `folder.parent_id`/`document.folder_id`, se não-nulo, precisa existir e pertencer ao mesmo `owner_id`; senão 404. Chamado no `create` de `folders`/`documents` e no `update` de `documents` quando `folder_id` está no patch (AC#1, #2).
+- `assertReferenceTarget` (AC#3) já existia desde a Story 4.2 — reaproveitada, não duplicada.
+- **Novo:** `assertFavoriteTarget(scope, documentId, ownerId)` — `favorite.document_id` precisa existir e ser visível no scope indicado (AC#4).
+- FK-schema vs validação-gateway (AC#5): FKs reais (`folder→folder`, `document→folder`, refs de shared) cobrem existência dentro do schema; a regra "mesmo dono" nunca é FK, é sempre gateway — documentado em `05-validacao.md §4`.
+- Unicidade de favorito (AC#6): já é índice único desde a Story 2.3 (`uq_favorites_owner_doc`); `translatePgError` (Story 5.5) já traduz a violação em 409 — nada novo.
+- Caso de teste novo: `folder_id` inexistente → 404.
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/routes/data.ts` (`assertOwnedFolder`, `assertFavoriteTarget`)
+- `knowledge/dev/e2e/roteiro.sh` (caso novo)

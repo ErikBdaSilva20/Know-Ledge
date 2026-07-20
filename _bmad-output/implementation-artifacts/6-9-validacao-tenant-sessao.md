@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.9: [VALIDAÇÃO] `X-Tenant-Id` deve casar com a sessão (isolamento de tenant)
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,9 +23,9 @@ so that **um cliente não acesse dados de outro tenant trocando o header**.
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar a validação header↔sessão (AC: #1, #2)
-- [ ] Task 2: Registrar a defesa em profundidade (sessão + banco isolado) (AC: #3)
-- [ ] Task 3: Caso de teste de tenant cruzado (AC: #4, #6) — linkar Story 7.5
+- [x] Task 1: Documentar a validação header↔sessão (AC: #1, #2)
+- [x] Task 2: Registrar a defesa em profundidade (sessão + banco isolado) (AC: #3)
+- [x] Task 3: Caso de teste de tenant cruzado (AC: #4, #6) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -44,8 +48,18 @@ so that **um cliente não acesse dados de outro tenant trocando o header**.
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`. Nada novo implementado — esta story só formaliza/documenta comportamento já existente desde a Story 7.2.
 
 ### Completion Notes List
 
+- `requireTenant` (`knowledge/dev/mock-gateway/src/middleware.ts`, entregue na Story 7.2) já valida `X-Tenant-Id` contra `TENANT_ID` configurado — divergência → 403 (AC#1). No harness local (single-tenant), "a sessão" e "o tenant configurado" são a mesma coisa; num gateway multi-tenant real, a validação seria contra o tenant da sessão, não uma env var fixa — mesma ideia, granularidade diferente porque este é um harness single-tenant.
+- Documentado (AC#2, #3): `X-Tenant-Id` só roteia, não autoriza; o isolamento físico (1 Neon por tenant) é a última linha mesmo se o header for adulterado.
+- Caso de teste (AC#4, #6) já existia em `dev/e2e/roteiro.sh` desde o Épico 4: "X-Tenant-Id errado -> 403".
+
 ### File List
+
+- (nenhum arquivo novo — comportamento já implementado na Story 7.2, só formalizado aqui)

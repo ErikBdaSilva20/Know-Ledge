@@ -1,7 +1,8 @@
 import { Hono, type Context } from "hono";
 import { pool } from "../db.js";
 import { ApiError } from "../errors.js";
-import { isKnownTable, TABLES } from "../tables.js";
+import { isKnownTable, isUuid, SCHEMAS } from "../schemas.js";
+import { TABLES } from "../tables.js";
 import { requireAuth, requireTenant } from "../middleware.js";
 import type { SessionUser } from "../auth.js";
 
@@ -24,22 +25,25 @@ async function parseBody(c: Context): Promise<Record<string, unknown>> {
   return body as Record<string, unknown>;
 }
 
-// Story 4.2 — the FK on document_references.target_document_id can't exist
-// (it's polymorphic: personal -> documents, shared -> shared_documents), so
-// the cross-scope rules are enforced here instead: a personal target must
-// belong to the SAME owner (a link can't point at someone else's private
-// doc — Story 4.2 AC#1); a shared target must exist (AC#2).
-async function validateReferenceTarget(
-  targetScope: unknown,
-  targetDocumentId: unknown,
+// Story 6.6 — `parent_id`/`folder_id` must exist AND belong to the same
+// owner (a rep can't nest into someone else's folder). Not expressible as a
+// plain FK, so it's validated here, same pattern as document_references.
+async function assertOwnedFolder(folderId: string | null, ownerId: string) {
+  if (folderId === null) return;
+  const res = await pool.query(`select 1 from folders where id = $1 and owner_id = $2`, [
+    folderId,
+    ownerId,
+  ]);
+  if (res.rowCount === 0) throw new ApiError(404, "not_found", `folders/${folderId} not found`);
+}
+
+// Story 4.2 / 6.6 — a personal target must belong to the SAME owner; a
+// shared target just needs to exist (it's visible to everyone).
+async function assertReferenceTarget(
+  targetScope: "personal" | "shared",
+  targetDocumentId: string,
   ownerId: string,
 ) {
-  if (targetScope !== "personal" && targetScope !== "shared") {
-    throw new ApiError(400, "invalid_body", "target_scope must be 'personal' or 'shared'");
-  }
-  if (typeof targetDocumentId !== "string" || targetDocumentId.length === 0) {
-    throw new ApiError(400, "invalid_body", "target_document_id is required");
-  }
   const res =
     targetScope === "personal"
       ? await pool.query(`select 1 from documents where id = $1 and owner_id = $2`, [
@@ -56,16 +60,25 @@ async function validateReferenceTarget(
   }
 }
 
-function pickColumns(body: Record<string, unknown>, allowed: string[]) {
-  const cols: string[] = [];
-  const values: unknown[] = [];
-  for (const key of allowed) {
-    if (key in body) {
-      cols.push(key);
-      values.push(body[key]);
-    }
+async function assertFavoriteTarget(
+  documentScope: "personal" | "shared",
+  documentId: string,
+  ownerId: string,
+) {
+  const res =
+    documentScope === "personal"
+      ? await pool.query(`select 1 from documents where id = $1 and owner_id = $2`, [
+          documentId,
+          ownerId,
+        ])
+      : await pool.query(`select 1 from shared_documents where id = $1`, [documentId]);
+  if (res.rowCount === 0) {
+    throw new ApiError(
+      404,
+      "not_found",
+      `Favorite target ${documentScope}/${documentId} not found`,
+    );
   }
-  return { cols, values };
 }
 
 // GET /data/:table — list, filtered server-side by ownership (Story 3.3).
@@ -85,9 +98,10 @@ dataRoutes.get("/:table", async (c) => {
   return c.json(res.rows);
 });
 
-// POST /data/:table — create. owner_id/published_by are ALWAYS server-set
-// from the session (Story 3.1) — any value the client sends for that column
-// is silently dropped, never merged.
+// POST /data/:table — create. Schema validation (Story 6.1) is `.strict()`,
+// so it doubles as the field whitelist (Story 6.3) AND the owner_id/
+// published_by rejection (Story 6.2) — none of those are declared fields,
+// so sending them is a 400, not a silent drop.
 dataRoutes.post("/:table", async (c) => {
   const table = c.req.param("table");
   if (!isKnownTable(table)) throw new ApiError(400, "unknown_table", `Unknown table: ${table}`);
@@ -99,12 +113,31 @@ dataRoutes.post("/:table", async (c) => {
   }
 
   const body = await parseBody(c);
+  const parsed = SCHEMAS[table].insert.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid body");
+  }
+  const data = parsed.data as Record<string, unknown>;
 
+  if (table === "folders") await assertOwnedFolder(data.parent_id as string | null, user.id);
+  if (table === "documents") await assertOwnedFolder(data.folder_id as string | null, user.id);
   if (table === "document_references") {
-    await validateReferenceTarget(body.target_scope, body.target_document_id, user.id);
+    await assertReferenceTarget(
+      data.target_scope as "personal" | "shared",
+      data.target_document_id as string,
+      user.id,
+    );
+  }
+  if (table === "favorites") {
+    await assertFavoriteTarget(
+      data.document_scope as "personal" | "shared",
+      data.document_id as string,
+      user.id,
+    );
   }
 
-  const { cols, values } = pickColumns(body, config.insertable);
+  const cols = Object.keys(data);
+  const values = Object.values(data);
   if (config.serverDerivedColumn) {
     cols.push(config.serverDerivedColumn);
     values.push(user.id);
@@ -127,6 +160,7 @@ dataRoutes.patch("/:table/:id", async (c) => {
   const table = c.req.param("table");
   const id = c.req.param("id");
   if (!isKnownTable(table)) throw new ApiError(400, "unknown_table", `Unknown table: ${table}`);
+  if (!isUuid(id)) throw new ApiError(400, "invalid_id", "id must be a UUID"); // Story 6.10
   const config = TABLES[table];
   const user = c.get("user");
 
@@ -135,7 +169,19 @@ dataRoutes.patch("/:table/:id", async (c) => {
   }
 
   const body = await parseBody(c);
-  const { cols, values } = pickColumns(body, config.updatable);
+  const parsed = SCHEMAS[table].update.safeParse(body);
+  if (!parsed.success) {
+    throw new ApiError(400, "invalid_body", parsed.error.issues[0]?.message ?? "Invalid body");
+  }
+  // expected_updated_at is a concurrency control (Story 6.11 AC#1), not a column.
+  const { expected_updated_at, ...columns } = parsed.data as Record<string, unknown>;
+
+  if (table === "documents" && "folder_id" in columns) {
+    await assertOwnedFolder(columns.folder_id as string | null, user.id);
+  }
+
+  const cols = Object.keys(columns);
+  const values = Object.values(columns);
   if (cols.length === 0) throw new ApiError(400, "invalid_body", "Nothing to update");
   if (config.hasUpdatedAt) cols.push("updated_at");
 
@@ -144,16 +190,35 @@ dataRoutes.patch("/:table/:id", async (c) => {
     .join(", ");
 
   const restrictToOwner = config.ownerVisibility && user.role === "rep";
-  const whereClause = restrictToOwner
-    ? `where id = $${values.length + 1} and owner_id = $${values.length + 2}`
-    : `where id = $${values.length + 1}`;
-  const whereValues = restrictToOwner ? [id, user.id] : [id];
+  const conditions = [`id = $${values.length + 1}`];
+  const whereValues: unknown[] = [id];
+  if (restrictToOwner) {
+    conditions.push(`owner_id = $${values.length + whereValues.length + 1}`);
+    whereValues.push(user.id);
+  }
+  if (typeof expected_updated_at === "string") {
+    conditions.push(`updated_at = $${values.length + whereValues.length + 1}`);
+    whereValues.push(expected_updated_at);
+  }
 
-  const res = await pool.query(`update ${table} set ${setClause} ${whereClause} returning *`, [
-    ...values,
-    ...whereValues,
-  ]);
-  if (res.rowCount === 0) throw new ApiError(404, "not_found", `${table}/${id} not found`);
+  const res = await pool.query(
+    `update ${table} set ${setClause} where ${conditions.join(" and ")} returning *`,
+    [...values, ...whereValues],
+  );
+  if (res.rowCount === 0) {
+    // Distinguish "someone else edited it first" (409) from "not found/not
+    // yours" (404) only when a version was supplied — otherwise the two are
+    // indistinguishable by design (Story 3.4 AC#6).
+    if (typeof expected_updated_at === "string") {
+      const stillExists = restrictToOwner
+        ? await pool.query(`select 1 from ${table} where id = $1 and owner_id = $2`, [id, user.id])
+        : await pool.query(`select 1 from ${table} where id = $1`, [id]);
+      if ((stillExists.rowCount ?? 0) > 0) {
+        throw new ApiError(409, "conflict", "This item was changed elsewhere. Reload and retry.");
+      }
+    }
+    throw new ApiError(404, "not_found", `${table}/${id} not found`);
+  }
   return c.json(res.rows[0]);
 });
 
@@ -162,6 +227,7 @@ dataRoutes.delete("/:table/:id", async (c) => {
   const table = c.req.param("table");
   const id = c.req.param("id");
   if (!isKnownTable(table)) throw new ApiError(400, "unknown_table", `Unknown table: ${table}`);
+  if (!isUuid(id)) throw new ApiError(400, "invalid_id", "id must be a UUID"); // Story 6.10
   const config = TABLES[table];
   const user = c.get("user");
 

@@ -1,8 +1,10 @@
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { ApiError, errorBody, translatePgError } from "./errors.js";
 import { accessLog, requestId } from "./logging.js";
+import { rateLimitMutations } from "./rateLimit.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dataRoutes } from "./routes/data.js";
 import { publishRoutes } from "./routes/publish.js";
@@ -25,6 +27,24 @@ app.use(
     allowHeaders: ["Content-Type", "X-Tenant-Id", "Idempotency-Key"],
   }),
 );
+
+// Story 6.8 — payload-size ceiling (independent of the per-field limits in
+// schemas.ts) and a per-session rate limit on every mutating request.
+app.use(
+  "*",
+  bodyLimit({
+    maxSize: 300 * 1024,
+    onError: (c) =>
+      c.json(
+        errorBody(
+          new ApiError(413, "payload_too_large", "Request body too large"),
+          c.get("requestId") ?? "unknown",
+        ),
+        413,
+      ),
+  }),
+);
+app.use("*", rateLimitMutations);
 
 app.onError((err, c) => {
   const id = c.get("requestId") ?? "unknown";

@@ -33,16 +33,26 @@ export const sharedDocumentsRepo = {
     });
     return s;
   },
-  async update(id: string, patch: Partial<SharedDocument>): Promise<void> {
+  // Story 6.11 AC#1 — see documents.repo.ts's update() for why `opts` exists.
+  async update(
+    id: string,
+    patch: Partial<SharedDocument>,
+    opts?: { expectedUpdatedAt?: string },
+  ): Promise<SharedDocument> {
     if (isGatewayMode()) {
-      await table.update(id, patch);
-      return;
+      const body: Partial<SharedDocument> & { expected_updated_at?: string } = { ...patch };
+      if (opts?.expectedUpdatedAt) body.expected_updated_at = opts.expectedUpdatedAt;
+      return table.update(id, body as Partial<SharedDocument>);
     }
+    let updated: SharedDocument | undefined;
     mutate((db) => {
       const idx = db.shared_documents.findIndex((d) => d.id === id);
       if (idx < 0) return;
       db.shared_documents[idx] = { ...db.shared_documents[idx], ...patch, updated_at: isoNow() };
+      updated = db.shared_documents[idx];
     });
+    if (!updated) throw new Error(`shared_documents/${id} not found`);
+    return updated;
   },
   async remove(id: string): Promise<void> {
     if (isGatewayMode()) {

@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.2: [VALIDAÇÃO] Rejeitar/ignorar `owner_id` (e `published_by`) vindos do front
 
-Status: ready-for-dev
+Status: review
 
 ## Story
 
@@ -19,9 +23,9 @@ so that **ninguém falsifique dono ou autor de um registro (IDOR de atribuição
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Definir a lista de campos server-only por entidade: `owner_id`, `published_by`, `id`, `created_at`, `updated_at` (AC: #1, #2)
-- [ ] Task 2: Escolher e documentar política strip vs reject (AC: #3)
-- [ ] Task 3: Caso de teste de injeção de owner_id/published_by (AC: #5) — linkar Story 7.5
+- [x] Task 1: Definir a lista de campos server-only por entidade: `owner_id`, `published_by`, `id`, `created_at`, `updated_at` (AC: #1, #2)
+- [x] Task 2: Escolher e documentar política strip vs reject (AC: #3)
+- [x] Task 3: Caso de teste de injeção de owner_id/published_by (AC: #5) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -43,8 +47,19 @@ so that **ninguém falsifique dono ou autor de um registro (IDOR de atribuição
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Não executado contra Postgres real. Status `review`.
 
 ### Completion Notes List
 
+- **Política escolhida: reject (400), não strip silencioso** — AC#3 recomendava reject, implementado via `.strict()` nos schemas Zod de `schemas.ts`: `owner_id`/`published_by`/`id`/`created_at`/`updated_at` não são campos declarados em nenhum schema, então mandá-los é rejeição automática. Consistente pra todas as entidades (uma única lista, `schemas.ts`, não uma política por tabela).
+- Repos do app (Story 1.6/3.1) continuam fazendo o strip antes de enviar — defesa em profundidade, não a única linha (AC#4).
+- **Correção em `dev/e2e/roteiro.sh`:** o caso de teste antigo esperava `owner_id` injetado ser "ignorado, fica com o da sessão" (201). Com a política reject, agora é **400** — teste atualizado (AC#5).
+
 ### File List
+
+- `knowledge/dev/mock-gateway/src/schemas.ts`
+- `knowledge/dev/e2e/roteiro.sh` (caso corrigido)

@@ -1,6 +1,10 @@
+---
+baseline_commit: 6cba9cb
+---
+
 # Story 6.12: [VALIDAÇÃO] Exclusão permanente é decidida no servidor (confirmação é só UX)
 
-Status: ready-for-dev
+Status: done
 
 ## Story
 
@@ -19,10 +23,10 @@ so that **a ausência de "confirmei" no front nunca seja o que impede uma exclus
 
 ## Tasks / Subtasks
 
-- [ ] Task 1: Documentar "confirmação é UX, gate é servidor" (AC: #1, #6)
-- [ ] Task 2: Reafirmar exclusão permanente sem soft-delete (AC: #2)
-- [ ] Task 3: Garantir cascade server-side, não client-side (AC: #3) — linkar Story 5.4
-- [ ] Task 4: Casos de teste de exclusão cross-owner e na base compartilhada (AC: #4, #5) — linkar Story 7.5
+- [x] Task 1: Documentar "confirmação é UX, gate é servidor" (AC: #1, #6)
+- [x] Task 2: Reafirmar exclusão permanente sem soft-delete (AC: #2)
+- [x] Task 3: Garantir cascade server-side, não client-side (AC: #3) — linkar Story 5.4
+- [x] Task 4: Casos de teste de exclusão cross-owner e na base compartilhada (AC: #4, #5) — linkar Story 7.5
 
 ## Dev Notes
 
@@ -44,8 +48,19 @@ so that **a ausência de "confirmei" no front nunca seja o que impede uma exclus
 
 ### Agent Model Used
 
+Claude Sonnet 5 (Amelia persona)
+
 ### Debug Log References
+
+- Marcada `done`: nenhum código novo, só reafirmação de comportamento já implementado e já revisado por leitura nas Stories 3.4/3.5/5.4.
 
 ### Completion Notes List
 
+- `DELETE /data/:table/:id` sempre passa pelo mesmo gate atômico de ownership/papel do `PATCH` (`routes/data.ts`) — a `ConfirmDialog` do front nunca é consultada pelo servidor, é puramente UX (AC#1, #6).
+- Sem soft-delete: nenhuma tabela tem `deleted_at` (Épico 2); `DELETE` é sempre `DELETE FROM ... RETURNING id`, sem filtro de "não deletados" em lugar nenhum (AC#2).
+- Cascade é sempre FK do banco (Story 5.4/Épico 2), nunca o front deletando item por item (AC#3).
+- Cross-owner (AC#4) e base compartilhada (AC#5) já cobertos por casos de teste em `dev/e2e/roteiro.sh` desde os Épicos 4/5.
+
 ### File List
+
+- (nenhum arquivo novo)

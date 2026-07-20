@@ -1,4 +1,5 @@
 import { marked } from "marked";
+import DOMPurify from "dompurify";
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { Document, Scope, SharedDocument } from "./types";
@@ -88,7 +89,12 @@ export function MarkdownView({
     <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:leading-relaxed prose-a:text-primary">
       {segments.map((seg, i) => {
         if (seg.type === "text") {
-          const html = marked.parse(seg.value) as string;
+          // Story 6.7 — a shared document is read by users other than its
+          // author; stored-XSS is the threat model. marked() never
+          // interprets Markdown as trusted HTML, so every render is
+          // sanitized (no <script>, no on*=, no javascript: URLs) here at
+          // the presentation boundary, not "fixed" server-side.
+          const html = DOMPurify.sanitize(marked.parse(seg.value) as string);
           return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
         }
         const resolved = resolveWikiLink(seg.link, personalDocs, sharedDocs);

@@ -65,12 +65,14 @@ check "rep1 cria um documento" 201 "$status"
 echo
 echo "== Casos negativos de zero-trust (P0) =="
 
-# §1 — owner_id injetado é ignorado
-resp=$(curl -s -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" -H "Content-Type: application/json" \
+# §1 / Story 6.2 — owner_id injetado é rejeitado (a whitelist .strict() do
+# Zod nem aceita a chave, então isto é 400, não um create bem-sucedido com
+# o valor silenciosamente trocado — falha alto e cedo, como a AC recomenda).
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" \
   -d "{\"folder_id\":null,\"title\":\"x\",\"content\":\"\",\"owner_id\":\"$REP2_ID\"}" \
   "$GW/data/documents")
-owner=$(echo "$resp" | grep -o '"owner_id":"[^"]*"' | cut -d'"' -f4)
-check "owner_id injetado no create é ignorado (fica com o da sessão)" "$REP1_ID" "$owner"
+check "owner_id injetado no create é rejeitado (400)" 400 "$status"
 
 # §3 — rep1 não recebe documentos de rep2 na lista
 status=$(curl -s -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" "$GW/data/documents" | grep -c "$DOC_REP2_ID" || true)
@@ -88,6 +90,54 @@ check "rep1 PATCH em documento de rep2 -> negado sem vazar existência" 404 "$st
 status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
   -X DELETE "$GW/data/documents/$DOC_REP2_ID")
 check "rep1 DELETE em documento de rep2 -> negado" 404 "$status"
+
+echo
+echo "== Bloco de validação (Épico 6) =="
+
+# Story 6.3 — campo desconhecido é rejeitado (whitelist .strict())
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" \
+  -d '{"folder_id":null,"title":"x","content":"","not_a_real_field":"x"}' \
+  "$GW/data/documents")
+check "campo desconhecido no create -> 400" 400 "$status"
+
+# Story 6.4 — enum inválido
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" \
+  -d '{"source_document_id":"'"$DOC_REP2_ID"'","target_scope":"group","target_document_id":"'"$DOC_REP2_ID"'"}' \
+  "$GW/data/document_references")
+check "target_scope='group' -> 400" 400 "$status"
+
+# Story 6.5 — título acima do limite
+LONG_TITLE=$(printf 'a%.0s' $(seq 1 400))
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" \
+  -d '{"folder_id":null,"title":"'"$LONG_TITLE"'","content":""}' \
+  "$GW/data/documents")
+check "title com 400 chars (limite é 300) -> 400" 400 "$status"
+
+# Story 6.6 — folder_id de pasta que não existe/não é do autor
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -H "Content-Type: application/json" \
+  -d '{"folder_id":"00000000-0000-4000-8000-000000000000","title":"x","content":""}' \
+  "$GW/data/documents")
+check "folder_id inexistente -> 404" 404 "$status"
+
+# Story 6.10 — id malformado na rota
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -X PATCH -H "Content-Type: application/json" -d '{"title":"x"}' \
+  "$GW/data/documents/not-a-uuid")
+check "PATCH com id não-UUID -> 400" 400 "$status"
+
+# Story 6.11 — concorrência otimista (expected_updated_at desatualizado -> 409)
+created=$(curl -s -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" -H "Content-Type: application/json" \
+  -d '{"folder_id":null,"title":"conflito","content":"v1"}' "$GW/data/documents")
+created_id=$(echo "$created" | grep -o '"id":"[^"]*"' | head -1 | cut -d'"' -f4)
+status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \
+  -X PATCH -H "Content-Type: application/json" \
+  -d '{"content":"v2","expected_updated_at":"2000-01-01T00:00:00.000Z"}' \
+  "$GW/data/documents/$created_id")
+check "PATCH com expected_updated_at desatualizado -> 409" 409 "$status"
 
 # §5 — gate de escrita ownerless
 status=$(curl -s -o /dev/null -w "%{http_code}" -b "$REP1_JAR" -H "X-Tenant-Id: $TENANT" \

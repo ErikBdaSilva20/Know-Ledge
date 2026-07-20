@@ -25,12 +25,15 @@ A **ÚNICA fonte-da-verdade do progresso** é o arquivo
    **ordem recomendada (Seção 4)**.
 3. Abra o arquivo dela em `implementation-artifacts/<arquivo>.md` e execute.
 
-> Estado em 2026-07-22: Épicos 1-4 `done`. Épicos 5 e 7 implementados e em `review`
-> (código pronto — envelope de erro, status map, logging, cascade, timeout/retry/
-> idempotência — verificação em runtime pendente, rodar na máquina do Erik: Docker
-> Desktop não estava acessível no ambiente onde isto foi construído). Próxima:
-> **Épico 6** (Bloco de Validação), começando pela Story 6.1
-> (`implementation-artifacts/6-1-validacao-schema-no-boundary.md`).
+> Estado em 2026-07-23: **as 41 stories têm código** — Épicos 1-4 `done`; Épicos 5, 6 e 7
+> em `review` (implementados, mas com verificação em runtime pendente — Docker Desktop
+> não estava acessível no ambiente onde isto foi construído). **Não há mais "próxima
+> story"** — o que falta é rodar `knowledge/dev/` de verdade na máquina do Erik:
+> 1. `cd knowledge/dev && docker compose up -d --build`
+> 2. `cd mock-gateway && npm install && npm run seed`
+> 3. `cd ../e2e && ./roteiro.sh` — se algo falhar aqui, é isso que vira a próxima
+>    story de correção (reabrir a story correspondente, não criar uma nova).
+> Ver `knowledge/dev/README.md` para o passo a passo completo.
 
 ---
 

@@ -54,6 +54,9 @@ export function Editor({ scope, id, readOnly }: Props) {
   const [title, setTitle] = useState(doc?.title ?? "");
   const [content, setContent] = useState(doc?.content ?? "");
   const [dirty, setDirty] = useState(false);
+  // Story 6.11 — the `updated_at` this editor last saw, sent back on the
+  // next save so the gateway can 409 instead of overwriting a concurrent edit.
+  const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<string | undefined>(doc?.updated_at);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [showRaw, setShowRaw] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
@@ -69,6 +72,7 @@ export function Editor({ scope, id, readOnly }: Props) {
     setTitle(doc.title);
     setContent(doc.content);
     setDirty(false);
+    setLastKnownUpdatedAt(doc.updated_at);
     pushRecent(scope, doc.id);
   }, [doc?.id]);
 
@@ -76,22 +80,26 @@ export function Editor({ scope, id, readOnly }: Props) {
     if (!dirty || !doc) return;
     const t = setTimeout(async () => {
       try {
-        if (scope === "personal") {
-          await documentsRepo.update(doc.id, { title, content });
-        } else {
-          await sharedDocumentsRepo.update(doc.id, { title, content });
-        }
+        const opts = { expectedUpdatedAt: lastKnownUpdatedAt };
+        const saved =
+          scope === "personal"
+            ? await documentsRepo.update(doc.id, { title, content }, opts)
+            : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
         syncAllRefsFor(scope, doc.id);
         setDirty(false);
         setSavedAt(new Date());
+        setLastKnownUpdatedAt(saved.updated_at);
       } catch (err) {
         // Keep `dirty` true — the next edit (or a manual retry) re-triggers
-        // this effect instead of silently losing the pending change.
+        // this effect instead of silently losing the pending change. On a
+        // 409 (someone else saved first) the toast from handleDomainError
+        // is the only reaction today — no auto-merge (Story 6.11 AC#5 is
+        // only partially satisfied: the user is warned, not offered a merge).
         handleDomainError(err);
       }
     }, 500);
     return () => clearTimeout(t);
-  }, [dirty, title, content, doc?.id, scope]);
+  }, [dirty, title, content, doc?.id, scope, lastKnownUpdatedAt]);
 
   const visiblePersonalIds = useMemo(() => new Set(allPersonal.map((d) => d.id)), [allPersonal]);
 
