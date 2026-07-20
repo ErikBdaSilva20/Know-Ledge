@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { Role } from "@/lib/types";
 
@@ -101,7 +102,9 @@ export function AdminPage() {
                   <ConfirmDialog
                     title={`Excluir "${d.title}"?`}
                     description="Exclusão permanente. Não pode ser desfeita."
-                    onConfirm={() => documentsRepo.remove(d.id)}
+                    onConfirm={() =>
+                      documentsRepo.remove(d.id).catch((err) => handleDomainError(err, navigate))
+                    }
                   >
                     <Button
                       variant="ghost"
@@ -135,7 +138,11 @@ export function AdminPage() {
                   <ConfirmDialog
                     title={`Remover "${s.title}"?`}
                     description="Remove permanentemente da Base Compartilhada."
-                    onConfirm={() => sharedDocumentsRepo.remove(s.id)}
+                    onConfirm={() =>
+                      sharedDocumentsRepo
+                        .remove(s.id)
+                        .catch((err) => handleDomainError(err, navigate))
+                    }
                   >
                     <Button
                       variant="ghost"

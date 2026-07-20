@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Search as SearchIcon } from "lucide-react";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { SideNavShell } from "@/components/SideNavShell";
 import { cn } from "@/lib/utils";
 
@@ -48,13 +49,17 @@ export function SharedLayout() {
                 title="Novo documento compartilhado"
                 onClick={async () => {
                   if (!user) return;
-                  const s = await sharedDocumentsRepo.create({
-                    title: "Sem título",
-                    content: "",
-                    source_document_id: null,
-                    published_by: user.id,
-                  });
-                  navigate(`/shared/${s.id}`);
+                  try {
+                    const s = await sharedDocumentsRepo.create({
+                      title: "Sem título",
+                      content: "",
+                      source_document_id: null,
+                      published_by: user.id,
+                    });
+                    navigate(`/shared/${s.id}`);
+                  } catch (err) {
+                    handleDomainError(err, navigate);
+                  }
                 }}
               >
                 <Plus className="h-3.5 w-3.5" />

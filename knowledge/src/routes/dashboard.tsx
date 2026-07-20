@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -61,13 +62,17 @@ export function Dashboard() {
       <div className="mb-8 flex flex-wrap gap-2">
         <Button
           onClick={async () => {
-            const d = await documentsRepo.create({
-              owner_id: user.id,
-              title: "Sem título",
-              content: "",
-              folder_id: null,
-            });
-            navigate(`/workspace/${d.id}`);
+            try {
+              const d = await documentsRepo.create({
+                owner_id: user.id,
+                title: "Sem título",
+                content: "",
+                folder_id: null,
+              });
+              navigate(`/workspace/${d.id}`);
+            } catch (err) {
+              handleDomainError(err, navigate);
+            }
           }}
         >
           <Plus className="mr-2 h-4 w-4" />

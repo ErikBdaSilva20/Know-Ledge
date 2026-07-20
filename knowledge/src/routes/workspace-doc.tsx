@@ -9,6 +9,7 @@ import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { syncSharedRefs } from "@/lib/syncRefs";
+import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
 
@@ -58,13 +59,17 @@ export function WorkspaceDoc() {
               variant="ghost"
               size="sm"
               onClick={async () => {
-                if (favorite) await favoritesRepo.remove(favorite.id);
-                else if (user)
-                  await favoritesRepo.create({
-                    owner_id: user.id,
-                    document_scope: "personal",
-                    document_id: docId,
-                  });
+                try {
+                  if (favorite) await favoritesRepo.remove(favorite.id);
+                  else if (user)
+                    await favoritesRepo.create({
+                      owner_id: user.id,
+                      document_scope: "personal",
+                      document_id: docId,
+                    });
+                } catch (err) {
+                  handleDomainError(err, navigate);
+                }
               }}
             >
               <Star
@@ -77,14 +82,18 @@ export function WorkspaceDoc() {
                 variant="ghost"
                 size="sm"
                 onClick={async () => {
-                  const s = await sharedDocumentsRepo.create({
-                    title: doc.title,
-                    content: doc.content,
-                    source_document_id: doc.id,
-                    published_by: user!.id,
-                  });
-                  syncSharedRefs(s.id);
-                  toast.success("Publicado na Base Compartilhada");
+                  try {
+                    const s = await sharedDocumentsRepo.create({
+                      title: doc.title,
+                      content: doc.content,
+                      source_document_id: doc.id,
+                      published_by: user!.id,
+                    });
+                    syncSharedRefs(s.id);
+                    toast.success("Publicado na Base Compartilhada");
+                  } catch (err) {
+                    handleDomainError(err, navigate);
+                  }
                 }}
               >
                 <Upload className="mr-1 h-3.5 w-3.5" />
@@ -96,8 +105,12 @@ export function WorkspaceDoc() {
                 title={`Excluir "${doc.title || "Sem título"}"?`}
                 description="Este documento será excluído permanentemente. Esta ação não pode ser desfeita."
                 onConfirm={async () => {
-                  await documentsRepo.remove(docId);
-                  navigate("/workspace");
+                  try {
+                    await documentsRepo.remove(docId);
+                    navigate("/workspace");
+                  } catch (err) {
+                    handleDomainError(err, navigate);
+                  }
                 }}
               >
                 <Button

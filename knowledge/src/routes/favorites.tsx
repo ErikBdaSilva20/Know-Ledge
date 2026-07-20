@@ -4,6 +4,7 @@ import { useSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { BookOpen, FileText, Star } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { Button } from "@/components/ui/button";
 
 export function FavoritesPage() {
@@ -36,7 +37,11 @@ export function FavoritesPage() {
                     >
                       {d.title}
                     </Link>
-                    <Button variant="ghost" size="icon" onClick={() => favoritesRepo.remove(f.id)}>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => favoritesRepo.remove(f.id).catch(handleDomainError)}
+                    >
                       <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                     </Button>
                   </li>
@@ -50,7 +55,11 @@ export function FavoritesPage() {
                   <Link to={`/shared/${s.id}`} className="flex-1 truncate text-sm hover:underline">
                     {s.title}
                   </Link>
-                  <Button variant="ghost" size="icon" onClick={() => favoritesRepo.remove(f.id)}>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => favoritesRepo.remove(f.id).catch(handleDomainError)}
+                  >
                     <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                   </Button>
                 </li>

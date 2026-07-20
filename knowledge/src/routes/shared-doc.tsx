@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 
 export function SharedDoc() {
@@ -58,13 +59,17 @@ export function SharedDoc() {
             variant="ghost"
             size="sm"
             onClick={async () => {
-              if (favorite) await favoritesRepo.remove(favorite.id);
-              else if (user)
-                await favoritesRepo.create({
-                  owner_id: user.id,
-                  document_scope: "shared",
-                  document_id: docId,
-                });
+              try {
+                if (favorite) await favoritesRepo.remove(favorite.id);
+                else if (user)
+                  await favoritesRepo.create({
+                    owner_id: user.id,
+                    document_scope: "shared",
+                    document_id: docId,
+                  });
+              } catch (err) {
+                handleDomainError(err, navigate);
+              }
             }}
           >
             <Star
@@ -77,8 +82,12 @@ export function SharedDoc() {
               title={`Remover "${doc.title}" da Base Compartilhada?`}
               description="O documento será excluído permanentemente da Base Compartilhada. O documento original (se houver) não é afetado."
               onConfirm={async () => {
-                await sharedDocumentsRepo.remove(docId);
-                navigate("/shared");
+                try {
+                  await sharedDocumentsRepo.remove(docId);
+                  navigate("/shared");
+                } catch (err) {
+                  handleDomainError(err, navigate);
+                }
               }}
             >
               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
