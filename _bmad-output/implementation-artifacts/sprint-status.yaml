@@ -45,33 +45,33 @@ development_status:
 
   # E5 — Tratamento de Erros (importantíssimo)
   epic-5: review
-  5-1-envelope-de-erro-padrao: review
-  5-2-mapa-status-http: review
+  5-1-envelope-de-erro-padrao: done
+  5-2-mapa-status-http: done
   5-3-logging-correlation-id: review
   5-4-integridade-referencial-cascade: done
   5-5-traducao-erros-db-timeouts: review
 
   # E6 — Bloco de Validação (atômico)
   epic-6: review
-  6-1-validacao-schema-no-boundary: review
-  6-2-rejeicao-owner-id-do-front: review
-  6-3-whitelist-campos-mass-assignment: review
-  6-4-validacao-enums: review
-  6-5-limites-tamanho-strings: review
-  6-6-validacao-referencias-fk: review
+  6-1-validacao-schema-no-boundary: done
+  6-2-rejeicao-owner-id-do-front: done
+  6-3-whitelist-campos-mass-assignment: done
+  6-4-validacao-enums: done
+  6-5-limites-tamanho-strings: done
+  6-6-validacao-referencias-fk: done
   6-7-sanitizacao-markdown-xss: done
   6-8-rate-limiting-payload-size: review
-  6-9-validacao-tenant-sessao: review
-  6-10-validacao-tipos-uuid-formato: review
-  6-11-idempotencia-conflitos-concorrencia: review
+  6-9-validacao-tenant-sessao: done
+  6-10-validacao-tipos-uuid-formato: done
+  6-11-idempotencia-conflitos-concorrencia: done
   6-12-exclusao-permanente-server-side: done
 
   # E7 — Ambiente Local (tenant-local via Docker)
   # Adiantado fora de ordem a pedido do Erik (Épico 7 normalmente viria por último;
   # trazido pra cá pra já existir um jeito de testar o Épico 4 localmente).
-  epic-7: review
-  7-1-docker-compose-tenant-local: review
+  epic-7: done
+  7-1-docker-compose-tenant-local: done
   7-2-mock-gateway-vs-gateway-real: done
-  7-3-seed-tenant-better-auth-papeis: review
-  7-4-config-client-gateway-local: review
-  7-5-roteiro-teste-e2e-local: review
+  7-3-seed-tenant-better-auth-papeis: done
+  7-4-config-client-gateway-local: done
+  7-5-roteiro-teste-e2e-local: done

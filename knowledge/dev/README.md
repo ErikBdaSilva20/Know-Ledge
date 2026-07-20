@@ -53,7 +53,8 @@ docker compose logs -f gateway   # confirma "listening on http://localhost:8787"
 
 cd mock-gateway
 npm install
-npm run seed                     # cria admin/manager/2×rep + dados de exemplo
+# roda no HOST, não no container — precisa da porta exposta (55432), não 5432
+DATABASE_URL="postgres://kv:kv_local_dev@localhost:55432/knowledge_vault" npm run seed
 ```
 
 Depois, no app (`knowledge/`):

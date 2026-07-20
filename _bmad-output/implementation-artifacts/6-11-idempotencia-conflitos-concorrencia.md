@@ -4,7 +4,7 @@ baseline_commit: 6cba9cb
 
 # Story 6.11: [VALIDAÇÃO] Concorrência, conflitos e idempotência
 
-Status: review
+Status: done
 
 ## Story
 
@@ -52,7 +52,8 @@ Claude Sonnet 5 (Amelia persona)
 
 ### Debug Log References
 
-- Não executado contra Postgres real. Status `review`. A lógica de 409 vs 404 em `routes/data.ts` faz uma segunda query pra distinguir os dois casos quando `expected_updated_at` foi enviado — não é perfeitamente atômica (pequena janela entre o `UPDATE` falhar e o `SELECT` de diagnóstico), aceitável pra um harness local, mas vale revalidar sob carga real.
+- **Rodado contra Postgres real (docker compose) e um bug de verdade foi encontrado e corrigido:** o `PATCH` com `expected_updated_at` **correto** devolvia 404 em vez de 200. Causa raiz: Postgres guarda `timestamptz` com precisão de **microssegundos** por padrão (`16:33:08.99355+00`), mas o round-trip via JSON/JS `Date` só preserva **milissegundos** (`16:33:08.993Z`) — a comparação `updated_at = $expected` nunca batia, mesmo sem conflito real. Corrigido declarando as colunas como `timestamptz(3)` na migration (truncamento na origem, não um workaround na query). Aplicado também via `ALTER TABLE` no Postgres já rodando pra revalidar sem derrubar o volume. Depois do fix: `roteiro.sh` 22/22, incluindo o caso de sucesso da concorrência testado manualmente. Status promovido pra `done`.
+- A lógica de 409 vs 404 em `routes/data.ts` faz uma segunda query pra distinguir os dois casos quando `expected_updated_at` foi enviado — não é perfeitamente atômica (pequena janela entre o `UPDATE` falhar e o `SELECT` de diagnóstico), aceitável pra um harness local, mas vale revalidar sob carga real.
 
 ### Completion Notes List
 

@@ -12,6 +12,13 @@
 --     Authorization is 100% in the gateway (app-layer).
 --   * No reserved table names (user, session, account, verification,
 --     organization, member, invitation) — none of the tables below collide.
+--   * timestamptz columns are declared timestamptz(3) (millisecond precision):
+--     Postgres's default is microseconds, but JS Date/JSON round-trips only
+--     carry milliseconds. Story 6.11's optimistic concurrency compares a
+--     client-echoed updated_at against the stored value — at full precision
+--     that comparison silently fails on every save (confirmed against a real
+--     Postgres, not a hypothetical). Truncating at the column removes the
+--     mismatch instead of requiring every comparison site to round.
 
 create or replace function touch_updated_at()
 returns trigger as $$
@@ -27,8 +34,8 @@ create table if not exists folders (
   owner_id    text not null references "user"(id) on delete cascade,
   parent_id   uuid references folders(id) on delete cascade,
   name        text not null,
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  created_at  timestamptz(3) not null default now(),
+  updated_at  timestamptz(3) not null default now()
 );
 create index if not exists idx_folders_owner on folders(owner_id);
 create index if not exists idx_folders_parent on folders(parent_id);
@@ -47,8 +54,8 @@ create table if not exists documents (
   folder_id   uuid references folders(id) on delete cascade,
   title       text not null,
   content     text not null default '',
-  created_at  timestamptz not null default now(),
-  updated_at  timestamptz not null default now()
+  created_at  timestamptz(3) not null default now(),
+  updated_at  timestamptz(3) not null default now()
 );
 create index if not exists idx_documents_owner on documents(owner_id);
 create index if not exists idx_documents_folder on documents(folder_id);
@@ -70,7 +77,7 @@ create table if not exists document_references (
   source_document_id  uuid not null references documents(id) on delete cascade,
   target_scope        text not null check (target_scope in ('personal', 'shared')),
   target_document_id  uuid not null,
-  created_at          timestamptz not null default now()
+  created_at          timestamptz(3) not null default now()
 );
 create index if not exists idx_document_references_owner on document_references(owner_id);
 create index if not exists idx_document_references_source on document_references(source_document_id);
@@ -81,7 +88,7 @@ create table if not exists favorites (
   owner_id        text not null references "user"(id) on delete cascade,
   document_scope  text not null check (document_scope in ('personal', 'shared')),
   document_id     uuid not null,
-  created_at      timestamptz not null default now()
+  created_at      timestamptz(3) not null default now()
 );
 create index if not exists idx_favorites_owner on favorites(owner_id);
 create unique index if not exists uq_favorites_owner_doc
@@ -108,8 +115,8 @@ create table if not exists shared_documents (
   content             text not null default '',
   source_document_id  uuid,
   published_by        text not null references "user"(id),
-  created_at          timestamptz not null default now(),
-  updated_at          timestamptz not null default now()
+  created_at          timestamptz(3) not null default now(),
+  updated_at          timestamptz(3) not null default now()
 );
 
 drop trigger if exists trg_shared_documents_touch_updated_at on shared_documents;
@@ -125,5 +132,5 @@ create table if not exists shared_document_references (
   id                          uuid primary key default gen_random_uuid(),
   source_shared_document_id  uuid not null references shared_documents(id) on delete cascade,
   target_shared_document_id  uuid not null references shared_documents(id) on delete cascade,
-  created_at                  timestamptz not null default now()
+  created_at                  timestamptz(3) not null default now()
 );
