@@ -63,10 +63,7 @@ Linguagens com realce: **bash, c, cpp, csharp, css, diff, dockerfile, go, ini
 typescript, xml (html)** e **yaml** — com os apelidos usuais (`ts`, `js`, `py`,
 `rs`, `sh`, `yml`…). Uma linguagem desconhecida cai em texto simples, sem erro.
 
-### Salvar e publicar
+### Salvar
 
-- **Salvar** — o editor salva automaticamente enquanto você escreve; o botão
-  _Salvar_ força a gravação na hora.
-- **Publicar na Base Compartilhada** — quem tem permissão (manager/admin) vê a
-  ação de publicar no documento. Publicar cria uma cópia visível para todo o
-  time na **Base Compartilhada**.
+O editor salva **automaticamente** enquanto você escreve; o botão _Salvar_ força
+a gravação na hora.

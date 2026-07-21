@@ -18,7 +18,6 @@ pessoal e privado; o time compartilha uma base comum.
 | **Grafo**              | Mapa visual das conexões entre pastas e documentos.            |
 | **Favoritos**          | Os documentos que você marcou com estrela.                     |
 | **Recentes**           | Os últimos documentos que você abriu.                          |
-| **Administração**      | Curadoria e gestão — visível apenas para manager/admin.        |
 
 ### Pastas e documentos
 
@@ -28,14 +27,8 @@ pessoal e privado; o time compartilha uma base comum.
 - Dois itens **não podem ter o mesmo nome na mesma pasta** — o sistema avisa e
   mantém o campo aberto para você escolher outro.
 
-### Papéis e permissões
+### O seu papel
 
-O que você pode fazer depende do seu papel:
-
-- **rep** — vê e edita **apenas os próprios** documentos. Não publica na Base
-  Compartilhada.
-- **manager** — vê **todos** os documentos, **publica** na Base Compartilhada e
-  edita documentos compartilhados.
-- **admin** — tudo o que o manager faz, mais acesso total à **Administração**.
-
-> O seu papel aparece no rodapé do menu lateral, ao lado do seu nome.
+Você vê e edita os **seus próprios** documentos, e pode **ler** tudo o que for
+publicado na **Base Compartilhada**. O seu papel aparece no rodapé do menu
+lateral, ao lado do seu nome.

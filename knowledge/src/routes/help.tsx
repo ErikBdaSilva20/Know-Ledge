@@ -1,8 +1,10 @@
 import { MarkdownView } from "@/lib/markdown";
+import { useSession } from "@/lib/session";
 import type { Document, SharedDocument } from "@/lib/types";
 import visaoGeral from "@/content/ajuda/01-visao-geral.md?raw";
 import guiaDetalhado from "@/content/ajuda/02-guia-detalhado.md?raw";
 import referencias from "@/content/ajuda/03-referencias.md?raw";
+import paraGestores from "@/content/ajuda/04-para-gestores.md?raw";
 
 // The help text never links to a user's documents, so wiki-link resolution gets
 // empty inputs. Module-level constants keep MarkdownView's memo stable.
@@ -10,13 +12,19 @@ const NO_DOCS: Document[] = [];
 const NO_SHARED: SharedDocument[] = [];
 const NO_IDS = new Set<string>();
 
-const PARTS = [
+const BASE_PARTS = [
   { id: "visao-geral", label: "1 · Como usar", content: visaoGeral },
   { id: "guia-detalhado", label: "2 · Guia detalhado", content: guiaDetalhado },
   { id: "referencias", label: "3 · Referências", content: referencias },
 ];
+// Manager/admin-only content — hidden from reps, who can neither publish nor
+// reach the Administração area.
+const MANAGER_PART = { id: "para-gestores", label: "4 · Para gestores", content: paraGestores };
 
 export function HelpPage() {
+  const { can } = useSession();
+  const PARTS = can("publishShared") ? [...BASE_PARTS, MANAGER_PART] : BASE_PARTS;
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Ajuda</h1>
