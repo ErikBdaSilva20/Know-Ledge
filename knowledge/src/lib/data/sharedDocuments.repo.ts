@@ -1,5 +1,6 @@
 import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
+import { domainErrorFromResponse, networkDomainError } from "./errors";
 import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { SharedDocument } from "../types";
 import type { Database } from "./types.gen";
@@ -32,6 +33,53 @@ export const sharedDocumentsRepo = {
       db.shared_documents.push(s);
     });
     return s;
+  },
+  // POST /shared/publish (Story 4.1) — the dedicated, idempotent publish route.
+  // Unlike create() above (generic /data/shared_documents, no idempotency, so a
+  // double-submit duplicates — audit finding M5), this sends an Idempotency-Key
+  // and lets the gateway derive published_by from the session and copy
+  // title/content from the source server-side. client.ts is PROTECTED and only
+  // speaks /data/:table, so — like usersRepo — this calls the route directly.
+  async publish(sourceDocumentId: string, publishedBy: string): Promise<SharedDocument> {
+    if (!isGatewayMode()) {
+      const src = getState().documents.find((d) => d.id === sourceDocumentId);
+      if (!src) throw new Error(`documents/${sourceDocumentId} not found`);
+      return sharedDocumentsRepo.create({
+        title: src.title,
+        content: src.content,
+        source_document_id: src.id,
+        published_by: publishedBy,
+      });
+    }
+    const gatewayUrl = import.meta.env.VITE_GATEWAY_URL ?? "";
+    const tenantId = import.meta.env.VITE_TENANT_ID ?? "";
+    let res: Response;
+    try {
+      res = await fetch(`${gatewayUrl}/shared/publish`, {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "X-Tenant-Id": tenantId,
+          "Idempotency-Key": crypto.randomUUID(),
+        },
+        body: JSON.stringify({ source_document_id: sourceDocumentId }),
+      });
+    } catch {
+      throw networkDomainError("Não foi possível falar com o servidor.");
+    }
+    if (!res.ok) {
+      const requestId = res.headers.get("X-Request-Id") ?? undefined;
+      let message = `POST /shared/publish failed with ${res.status}`;
+      try {
+        const data = await res.json();
+        if (typeof data?.error?.message === "string") message = data.error.message;
+      } catch {
+        // non-JSON body — keep the generic message
+      }
+      throw domainErrorFromResponse(res.status, message, requestId);
+    }
+    return (await res.json()) as SharedDocument;
   },
   // Story 6.11 AC#1 — see documents.repo.ts's update() for why `opts` exists.
   async update(

@@ -8,6 +8,7 @@ import { rateLimitMutations } from "./rateLimit.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dataRoutes } from "./routes/data.js";
 import { publishRoutes } from "./routes/publish.js";
+import { usersRoutes } from "./routes/users.js";
 import type { SessionUser } from "./auth.js";
 
 type Env = { Variables: { requestId: string; user?: SessionUser } };
@@ -68,6 +69,7 @@ app.onError((err, c) => {
 
 app.get("/health", (c) => c.json({ ok: true }));
 app.route("/api/auth", authRoutes);
+app.route("/api/users", usersRoutes);
 app.route("/data", dataRoutes);
 app.route("/shared", publishRoutes);
 

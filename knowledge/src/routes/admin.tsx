@@ -1,4 +1,6 @@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { FolderTree } from "@/components/FolderTree";
+import { PublishToSharedButton } from "@/components/PublishToSharedButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -6,9 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { usersRepo } from "@/lib/data/users.repo";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
-import type { Role } from "@/lib/types";
+import type { Document, Folder, Role } from "@/lib/types";
 import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
@@ -21,9 +24,7 @@ export function AdminPage() {
   const mockDocuments = useDb((s) => s.documents);
   const mockFolders = useDb((s) => s.folders);
   const mockShared = useDb((s) => s.shared_documents);
-  // No gateway endpoint lists users yet (known gap, see AUDITORIA-DADOS-MOCKADOS-E-BUGS.md) —
-  // stays mock-only in every mode.
-  const users = useDb((s) => s.users);
+  const mockUsers = useDb((s) => s.users);
   const { data: documents, refresh: refreshDocuments } = useGatewayList(
     mockDocuments,
     documentsRepo.list,
@@ -33,6 +34,9 @@ export function AdminPage() {
     mockShared,
     sharedDocumentsRepo.list,
   );
+  // Registered users, from the gateway's /api/users route (manager/admin only)
+  // — powers the owner filter, the "Usuários" tab and owner/publisher names.
+  const { data: users } = useGatewayList(mockUsers, usersRepo.list);
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [q, setQ] = useState("");
 
@@ -49,6 +53,20 @@ export function AdminPage() {
     if (q) list = list.filter((d) => d.title.toLowerCase().includes(q.toLowerCase()));
     return list;
   }, [documents, ownerFilter, q]);
+
+  // Folders + documents grouped by owner, for the read-only "Vaults" curation
+  // view. Any owner that has either a folder or a document gets a group.
+  const vaultGroups = useMemo(() => {
+    const byOwner = new Map<string, { folders: Folder[]; docs: Document[] }>();
+    const bucket = (ownerId: string) => {
+      let g = byOwner.get(ownerId);
+      if (!g) byOwner.set(ownerId, (g = { folders: [], docs: [] }));
+      return g;
+    };
+    for (const f of folders) bucket(f.owner_id).folders.push(f);
+    for (const d of documents) bucket(d.owner_id).docs.push(d);
+    return Array.from(byOwner.entries()).map(([ownerId, g]) => ({ ownerId, ...g }));
+  }, [folders, documents]);
 
   if (!allowed) return null;
 
@@ -73,6 +91,7 @@ export function AdminPage() {
       <Tabs defaultValue="docs" className="mt-8">
         <TabsList>
           <TabsTrigger value="docs">Documentos</TabsTrigger>
+          <TabsTrigger value="vaults">Vaults</TabsTrigger>
           <TabsTrigger value="shared">Base Compartilhada</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
         </TabsList>
@@ -137,6 +156,46 @@ export function AdminPage() {
               )}
             </ul>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="vaults" className="mt-4">
+          <div className="space-y-4">
+            {vaultGroups.map((g) => (
+              <Card key={g.ownerId}>
+                <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                    {(userMap.get(g.ownerId)?.name ?? "—").slice(0, 1)}
+                  </div>
+                  <span className="text-sm font-medium">
+                    {userMap.get(g.ownerId)?.name ?? "Dono desconhecido"}
+                  </span>
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {g.folders.length} pastas · {g.docs.length} docs
+                  </span>
+                </div>
+                <div className="p-2">
+                  <FolderTree
+                    folders={g.folders}
+                    documents={g.docs}
+                    docAction={(doc) => (
+                      <PublishToSharedButton
+                        documentId={doc.id}
+                        onPublished={refreshShared}
+                        compact
+                      />
+                    )}
+                  />
+                </div>
+              </Card>
+            ))}
+            {vaultGroups.length === 0 && (
+              <Card>
+                <p className="p-4 text-center text-sm text-muted-foreground">
+                  Nenhum vault para exibir.
+                </p>
+              </Card>
+            )}
+          </div>
         </TabsContent>
 
         <TabsContent value="shared" className="mt-4">

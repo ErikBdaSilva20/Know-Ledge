@@ -2,19 +2,17 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
+import { PublishToSharedButton } from "@/components/PublishToSharedButton";
 import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-import { Star, Upload, Trash2 } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
-import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { isGatewayMode } from "@/lib/data/dataSource";
 import { useGatewayList } from "@/lib/useGatewayList";
-import { syncSharedRefs } from "@/lib/syncRefs";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { toast } from "sonner";
 import type { Document } from "@/lib/types";
 
 export function WorkspaceDoc() {
@@ -104,32 +102,7 @@ export function WorkspaceDoc() {
               />
               {favorite ? "Favorito" : "Favoritar"}
             </Button>
-            {can("publishShared") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const s = await sharedDocumentsRepo.create({
-                      title: doc.title,
-                      content: doc.content,
-                      source_document_id: doc.id,
-                      published_by: user!.id,
-                    });
-                    // Best-effort: the shared doc itself already published
-                    // successfully above, so a ref-sync failure shouldn't
-                    // block the success toast — just surface it separately.
-                    syncSharedRefs(s.id).catch(handleDomainError);
-                    toast.success("Publicado na Base Compartilhada");
-                  } catch (err) {
-                    handleDomainError(err, navigate);
-                  }
-                }}
-              >
-                <Upload className="mr-1 h-3.5 w-3.5" />
-                Publicar na Base Compartilhada
-              </Button>
-            )}
+            <PublishToSharedButton documentId={doc.id} />
             {canEdit && (
               <ConfirmDialog
                 title={`Excluir "${doc.title || "Sem título"}"?`}
