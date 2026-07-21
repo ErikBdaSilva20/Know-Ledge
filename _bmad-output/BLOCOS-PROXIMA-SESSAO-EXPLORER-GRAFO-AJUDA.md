@@ -215,6 +215,67 @@ pra a tela de ajuda dá pra passar arrays vazios, já que a ajuda não referenci
 
 ---
 
+## Bloco 5 — Admin: visão de vaults por dono + ação reutilizável de publicar
+
+**Objetivo:** dar ao admin/manager uma visão organizada dos vaults dos outros (com o nome do dono) e
+uma forma rápida, visual e **reutilizável** de jogar um vault/pasta pra Base Compartilhada.
+
+**Contexto (já feito nesta sessão):** o filtro de dono do admin agora usa usuários reais via
+`usersRepo.list()` → `GET /api/users` (manager/admin). O `userMap` do admin já resolve nomes reais.
+Este bloco constrói **em cima disso**.
+
+**Onde:** `knowledge/src/routes/admin.tsx`, + provável componente novo reutilizável em
+`knowledge/src/components/`.
+
+### 5a. Visão de vaults por dono (organizada, com nome de quem tem o vault)
+- Nova aba (ou seção) no admin: "Vaults" — agrupa **pastas + documentos por dono** (usar o mesmo
+  agrupamento por `owner_id` que o `Explorer.tsx` já faz em `groups`, mas em modo leitura/curadoria).
+- Cabeçalho de cada grupo: avatar + **nome do dono** (via `userMap`, agora real). Contadores
+  (nº de pastas, nº de docs) por dono.
+- Árvore read-only (ou expandível) das pastas de cada dono. Reaproveitar a lógica de árvore do
+  `Explorer` — considerar **extrair um componente de árvore** (`FolderTree` puro, sem as ações de
+  edição) que tanto o Explorer quanto o admin usem. Isso já ataca a duplicação.
+
+### 5b. Ação rápida, visual e reutilizável de "Publicar na Base Compartilhada"
+- Um componente **reutilizável** `PublishToSharedButton` (ou um hook `usePublishToShared`) que
+  receba um documento (ou um conjunto) e publique na Base Compartilhada, com estado visual
+  (loading, sucesso, erro via `toast`) e confirmação. Usável **na tela de admin (5a)** e também no
+  `WorkspaceDoc` (que hoje tem o botão "Publicar" inline — dá pra unificar).
+- **⚠️ Atenção (achado M5 da auditoria):** o publish hoje vai pelo `/data/shared_documents` genérico
+  (sem idempotência → double-click duplica) em vez da rota dedicada `/shared/publish`. Este bloco é
+  a boa oportunidade de **ligar o componente à rota `/shared/publish`** (com `Idempotency-Key`),
+  fechando o M5 de uma vez. Ver `dev/mock-gateway/src/routes/publish.ts`.
+- "Jogar um vault/pasta inteira" pra Base Compartilhada = publicar todos os documentos de uma
+  pasta/dono em lote. **Decisão de produto:** publicar em lote copia N documentos (cada um vira um
+  `shared_document`)? Preserva a estrutura de pastas na Base Compartilhada (que hoje é plana)? Isso
+  pode virar extensão de fundação (a Base Compartilhada não tem pastas hoje). **Alinhar com o dono do
+  gateway antes** — pode ser Onda 2.
+
+**Decisões em aberto:**
+- Extrair `FolderTree` compartilhado (Explorer + admin) — recomendo sim (mata duplicação).
+- Publicar **em lote** (vault/pasta inteira) vs só doc-a-doc — o lote provavelmente é extensão de
+  fundação (Base Compartilhada plana, sem pastas). Confirmar escopo.
+- Unificar o botão "Publicar" do `WorkspaceDoc` com o componente reutilizável novo.
+
+**Critérios de aceite:**
+- [ ] Aba/seção "Vaults" no admin mostra pastas+docs agrupados por dono, com nome real do dono.
+- [ ] Componente/hook de publicar reutilizável, usado no admin e no WorkspaceDoc.
+- [ ] Publish passa a usar `/shared/publish` com idempotência (fecha M5).
+- [ ] `tsc`/`build`/`lint` limpos.
+
+---
+
+## Follow-up de fundação (não é um bloco de UI — é o gateway real)
+
+O fix do **filtro de usuários do admin** (feito nesta sessão) depende de `GET /api/users`, que foi
+adicionado **só ao mock-gateway local** (`dev/mock-gateway/src/routes/users.ts`). Pra funcionar em
+produção, o **gateway real** (`Cerebra-AI/tenant-gateway`) precisa da mesma rota (id, name, email,
+role; manager/admin). Até lá, `usersRepo.list()` degrada pra lista vazia em prod (filtro vazio, nomes
+"—") — sem crash. É o mesmo item M6 da `AUDITORIA-GERAL-CODIGO-E-ERROS.md`. **Alinhar com o dono do
+gateway.**
+
+---
+
 ## Resumo dos blocos
 
 | Bloco | Título | Arquivos principais | Precisa de decisão? |
@@ -223,6 +284,7 @@ pra a tela de ajuda dá pra passar arrays vazios, já que a ajuda não referenci
 | 2 | Grafo: drag + raise + hover | `Graph.tsx` | Sim — vizinhos 1-salto vs cadeia; rótulos sempre vs hover |
 | 3 | Grafo: linhas de referência | `Graph.tsx` | Sim — verificar se já aparecem pós-fix; cor |
 | 4 | Tela de Ajuda (3 partes) | `routes/help.tsx` (novo), `App.tsx`, `AppShell.tsx` | Sim — 1 página vs abas; formato do conteúdo |
+| 5 | Admin: vaults por dono + publicar reutilizável | `admin.tsx`, componente novo, `publish.ts` | Sim — extrair FolderTree; publish em lote (extensão?) |
 
 Todos os blocos são independentes entre si (2 e 3 no mesmo arquivo, fazer em sequência). Cada um fecha
 com `tsc`/`build`/`lint` limpos.
