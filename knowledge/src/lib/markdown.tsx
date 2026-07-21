@@ -1,12 +1,23 @@
-import { marked } from "marked";
+import { Marked, type Tokens } from "marked";
 import DOMPurify from "dompurify";
 import { useMemo } from "react";
-import { Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { highlightCode } from "./highlight";
 import type { Document, Scope, SharedDocument } from "./types";
 
-marked.setOptions({ breaks: true, gfm: true });
-
 const WIKI_LINK_RE = /\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/g;
+// Anchored variant for the marked tokenizer — must match at the start of the
+// remaining source, not anywhere in it.
+const WIKI_LINK_AT_START = /^\[\[([^\]|]+)(?:\|([^\]]+))?\]\]/;
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
 
 export interface WikiLink {
   title: string;
@@ -64,77 +75,118 @@ interface RenderProps {
   visiblePersonalIds: Set<string>;
 }
 
+// Render a resolved (or unresolved) wiki link to an HTML string. Anchors carry
+// a real href for a11y/middle-click plus data-wikilink-to for the delegated
+// SPA click handler below; unresolved links render inert.
+function renderWikiLink(
+  link: WikiLink,
+  personalDocs: Document[],
+  sharedDocs: SharedDocument[],
+  visiblePersonalIds: Set<string>,
+): string {
+  const resolved = resolveWikiLink(link, personalDocs, sharedDocs);
+  const visible =
+    !!resolved && (resolved.scope === "shared" || visiblePersonalIds.has(resolved.id));
+
+  if (visible && resolved) {
+    const to = resolved.scope === "shared" ? `/shared/${resolved.id}` : `/workspace/${resolved.id}`;
+    const variant = resolved.scope === "shared" ? "shared" : "personal";
+    const icon = resolved.scope === "shared" ? "◇" : "◆";
+    return (
+      `<a href="${to}" data-wikilink-to="${to}" class="kv-wikilink kv-wikilink--${variant}">` +
+      `<span class="kv-wikilink__icon">${icon}</span>${escapeHtml(resolved.title)}</a>`
+    );
+  }
+  return (
+    `<span class="kv-wikilink kv-wikilink--missing" title="Documento não encontrado">` +
+    `[[${escapeHtml(link.title)}]]</span>`
+  );
+}
+
 export function MarkdownView({
   content,
   personalDocs,
   sharedDocs,
   visiblePersonalIds,
 }: RenderProps) {
-  // Split into segments: text and wiki links, so we can render Link components
-  const segments = useMemo(() => {
-    const parts: Array<{ type: "text"; value: string } | { type: "link"; link: WikiLink }> = [];
-    const re = new RegExp(WIKI_LINK_RE);
-    let last = 0;
-    let m: RegExpExecArray | null;
-    while ((m = re.exec(content))) {
-      if (m.index > last) parts.push({ type: "text", value: content.slice(last, m.index) });
-      parts.push({ type: "link", link: { title: m[1].trim(), id: m[2]?.trim() } });
-      last = m.index + m[0].length;
+  const navigate = useNavigate();
+
+  const html = useMemo(() => {
+    // A fresh Marked instance (not the shared singleton) so the wiki-link
+    // renderer can close over the current docs without mutating global state.
+    const md = new Marked({ gfm: true, breaks: true });
+    md.use({
+      extensions: [
+        {
+          name: "wikilink",
+          level: "inline",
+          start(src: string) {
+            const i = src.indexOf("[[");
+            return i < 0 ? undefined : i;
+          },
+          tokenizer(src: string) {
+            const m = WIKI_LINK_AT_START.exec(src);
+            if (!m) return undefined;
+            return {
+              type: "wikilink",
+              raw: m[0],
+              title: m[1].trim(),
+              id: m[2]?.trim(),
+            };
+          },
+          renderer(token: Tokens.Generic) {
+            return renderWikiLink(
+              { title: token.title as string, id: token.id as string | undefined },
+              personalDocs,
+              sharedDocs,
+              visiblePersonalIds,
+            );
+          },
+        },
+      ],
+      renderer: {
+        // Syntax-highlight fenced code blocks (see highlight.ts). The token
+        // spans are HTML-escaped by highlight.js and re-sanitized below.
+        code({ text, lang }: Tokens.Code) {
+          const { html, language } = highlightCode(text, lang);
+          const langClass = language ? ` language-${language}` : "";
+          return `<pre><code class="hljs${langClass}">${html}</code></pre>`;
+        },
+      },
+    });
+
+    // Wrap GFM tables (which never nest) so wide ones scroll horizontally
+    // instead of overflowing the pane — see .kv-table-scroll in prose.css.
+    const parsed = (md.parse(content) as string)
+      .replace(/<table>/g, '<div class="kv-table-scroll"><table>')
+      .replace(/<\/table>/g, "</table></div>");
+
+    // Story 6.7 — a shared document is read by users other than its author;
+    // stored-XSS is the threat model. Sanitize once, at the presentation
+    // boundary (no <script>, no on*=, no javascript: URLs).
+    return DOMPurify.sanitize(parsed);
+  }, [content, personalDocs, sharedDocs, visiblePersonalIds]);
+
+  // Delegate clicks on rendered wiki links to the SPA router. Plain left-click
+  // navigates in place; modifier/middle clicks fall through to the browser so
+  // the real href still opens in a new tab.
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) {
+      return;
     }
-    if (last < content.length) parts.push({ type: "text", value: content.slice(last) });
-    return parts;
-  }, [content]);
+    const anchor = (e.target as HTMLElement).closest?.("[data-wikilink-to]");
+    const to = anchor?.getAttribute("data-wikilink-to");
+    if (to) {
+      e.preventDefault();
+      navigate(to);
+    }
+  };
 
   return (
-    <div className="prose prose-neutral dark:prose-invert max-w-none prose-headings:font-semibold prose-headings:tracking-tight prose-p:leading-relaxed prose-a:text-primary">
-      {segments.map((seg, i) => {
-        if (seg.type === "text") {
-          // Story 6.7 — a shared document is read by users other than its
-          // author; stored-XSS is the threat model. marked() never
-          // interprets Markdown as trusted HTML, so every render is
-          // sanitized (no <script>, no on*=, no javascript: URLs) here at
-          // the presentation boundary, not "fixed" server-side.
-          const html = DOMPurify.sanitize(marked.parse(seg.value) as string);
-          return <span key={i} dangerouslySetInnerHTML={{ __html: html }} />;
-        }
-        const resolved = resolveWikiLink(seg.link, personalDocs, sharedDocs);
-        const visible =
-          resolved && (resolved.scope === "shared" || visiblePersonalIds.has(resolved.id));
-
-        if (visible && resolved!.scope === "shared") {
-          return (
-            <Link
-              key={i}
-              to={`/shared/${resolved!.id}`}
-              className="mx-0.5 inline-flex items-center gap-1 rounded bg-accent px-1.5 py-0.5 text-sm font-medium text-accent-foreground hover:bg-accent/80"
-            >
-              <span className="text-muted-foreground">◇</span>
-              {resolved!.title}
-            </Link>
-          );
-        }
-        if (visible && resolved!.scope === "personal") {
-          return (
-            <Link
-              key={i}
-              to={`/workspace/${resolved!.id}`}
-              className="mx-0.5 inline-flex items-center gap-1 rounded bg-primary/10 px-1.5 py-0.5 text-sm font-medium text-primary hover:bg-primary/20"
-            >
-              <span className="text-muted-foreground">◆</span>
-              {resolved!.title}
-            </Link>
-          );
-        }
-        return (
-          <span
-            key={i}
-            className="mx-0.5 inline-flex items-center gap-1 rounded bg-destructive/10 px-1.5 py-0.5 text-sm text-destructive"
-            title="Documento não encontrado"
-          >
-            [[{seg.link.title}]]
-          </span>
-        );
-      })}
-    </div>
+    <div
+      className="prose markdown-body max-w-none"
+      onClick={handleClick}
+      dangerouslySetInnerHTML={{ __html: html }}
+    />
   );
 }
