@@ -58,11 +58,13 @@ export function Editor({ scope, id, readOnly }: Props) {
   // next save so the gateway can 409 instead of overwriting a concurrent edit.
   const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<string | undefined>(doc?.updated_at);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
+  const [saving, setSaving] = useState(false);
   const [showRaw, setShowRaw] = useState(true);
   const [showPreview, setShowPreview] = useState(true);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autoQuery, setAutoQuery] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const allPersonal = useDb((s) => s.documents);
   const allShared = useDb((s) => s.shared_documents);
@@ -76,30 +78,46 @@ export function Editor({ scope, id, readOnly }: Props) {
     pushRecent(scope, doc.id);
   }, [doc?.id]);
 
+  // Shared by the debounced auto-save below and the manual "Salvar" button —
+  // both just need to run the same save with whatever title/content/doc this
+  // render closed over.
+  const runSave = async () => {
+    if (!doc) return;
+    setSaving(true);
+    try {
+      const opts = { expectedUpdatedAt: lastKnownUpdatedAt };
+      const saved =
+        scope === "personal"
+          ? await documentsRepo.update(doc.id, { title, content }, opts)
+          : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
+      syncAllRefsFor(scope, doc.id);
+      setDirty(false);
+      setSavedAt(new Date());
+      setLastKnownUpdatedAt(saved.updated_at);
+    } catch (err) {
+      // Keep `dirty` true — the next edit (or a manual retry) re-triggers
+      // this effect instead of silently losing the pending change. On a
+      // 409 (someone else saved first) the toast from handleDomainError
+      // is the only reaction today — no auto-merge (Story 6.11 AC#5 is
+      // only partially satisfied: the user is warned, not offered a merge).
+      handleDomainError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!dirty || !doc) return;
-    const t = setTimeout(async () => {
-      try {
-        const opts = { expectedUpdatedAt: lastKnownUpdatedAt };
-        const saved =
-          scope === "personal"
-            ? await documentsRepo.update(doc.id, { title, content }, opts)
-            : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
-        syncAllRefsFor(scope, doc.id);
-        setDirty(false);
-        setSavedAt(new Date());
-        setLastKnownUpdatedAt(saved.updated_at);
-      } catch (err) {
-        // Keep `dirty` true — the next edit (or a manual retry) re-triggers
-        // this effect instead of silently losing the pending change. On a
-        // 409 (someone else saved first) the toast from handleDomainError
-        // is the only reaction today — no auto-merge (Story 6.11 AC#5 is
-        // only partially satisfied: the user is warned, not offered a merge).
-        handleDomainError(err);
-      }
-    }, 500);
-    return () => clearTimeout(t);
+    saveTimeoutRef.current = setTimeout(runSave, 500);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
   }, [dirty, title, content, doc?.id, scope, lastKnownUpdatedAt]);
+
+  const handleManualSave = () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    runSave();
+  };
 
   const visiblePersonalIds = useMemo(() => new Set(allPersonal.map((d) => d.id)), [allPersonal]);
 
@@ -177,6 +195,18 @@ export function Editor({ scope, id, readOnly }: Props) {
             <span className="hidden sm:inline">Salvo às {savedAt.toLocaleTimeString()}</span>
           ) : (
             <span className="hidden sm:inline">Salvo</span>
+          )}
+          {!readOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleManualSave}
+              disabled={!dirty || saving}
+              title="Salvar agora"
+            >
+              <Save className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Salvar</span>
+            </Button>
           )}
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             <PaneToggle
