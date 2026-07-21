@@ -1,4 +1,10 @@
-import { useMemo, useRef, useState, useEffect } from "react";
+import {
+  useMemo,
+  useRef,
+  useState,
+  useEffect,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 import { useNavigate } from "react-router-dom";
 import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
@@ -155,6 +161,9 @@ export function Graph() {
   }, [visibleDocs, visibleFolders, sharedDocs, personalRefs, sharedRefs, dims.w, dims.h]);
 
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>({});
+  // Nodes held fixed while dragged; the force sim reads this each frame so it
+  // never pulls a grabbed node back.
+  const pinnedRef = useRef<Map<string, { x: number; y: number }>>(new Map());
   useEffect(() => {
     const local: GNode[] = nodes.map((n) => ({ ...n }));
     const byKey = new Map(local.map((n) => [n.key, n]));
@@ -195,6 +204,14 @@ export function Graph() {
         b.vy -= fy;
       }
       for (const n of local) {
+        const pin = pinnedRef.current.get(n.key);
+        if (pin) {
+          n.x = pin.x;
+          n.y = pin.y;
+          n.vx = 0;
+          n.vy = 0;
+          continue;
+        }
         n.vx += (dims.w / 2 - n.x) * 0.005;
         n.vy += (dims.h / 2 - n.y) * 0.005;
         n.vx *= 0.72;
@@ -214,6 +231,97 @@ export function Graph() {
     };
   }, [nodes.length, edges.length, dims.w, dims.h]);
 
+  // Direct (1-hop) neighbours, so dragging a node carries its immediate cluster
+  // without dragging the whole graph.
+  const adjacency = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    const link = (a: string, b: string) => {
+      let set = m.get(a);
+      if (!set) m.set(a, (set = new Set()));
+      set.add(b);
+    };
+    for (const e of edges) {
+      link(e.source, e.target);
+      link(e.target, e.source);
+    }
+    return m;
+  }, [edges]);
+  const nodeByKey = useMemo(() => new Map(nodes.map((n) => [n.key, n])), [nodes]);
+
+  const dragRef = useRef<{
+    pointerId: number;
+    node: GNode;
+    keys: string[];
+    start: Map<string, { x: number; y: number }>;
+    clientX: number;
+    clientY: number;
+    moved: boolean;
+  } | null>(null);
+  const [draggingKey, setDraggingKey] = useState<string | null>(null);
+  const [hoveredKey, setHoveredKey] = useState<string | null>(null);
+
+  const navigateTo = (n: GNode) => {
+    if (n.kind === "doc-personal") navigate(`/workspace/${n.id}`);
+    else if (n.kind === "doc-shared") navigate(`/shared/${n.id}`);
+  };
+
+  const onNodePointerDown = (e: ReactPointerEvent, n: GNode) => {
+    const keys = [n.key, ...(adjacency.get(n.key) ?? [])];
+    const start = new Map<string, { x: number; y: number }>();
+    for (const k of keys) {
+      const p = positions[k];
+      if (p) {
+        start.set(k, { ...p });
+        pinnedRef.current.set(k, { ...p });
+      }
+    }
+    dragRef.current = {
+      pointerId: e.pointerId,
+      node: n,
+      keys,
+      start,
+      clientX: e.clientX,
+      clientY: e.clientY,
+      moved: false,
+    };
+    svgRef.current?.setPointerCapture(e.pointerId);
+    setDraggingKey(n.key);
+  };
+
+  const onSvgPointerMove = (e: ReactPointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    const dx = e.clientX - d.clientX;
+    const dy = e.clientY - d.clientY;
+    if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
+    if (!d.moved) return;
+    setPositions((prev) => {
+      const next = { ...prev };
+      for (const k of d.keys) {
+        const s = d.start.get(k);
+        if (!s) continue;
+        const r = nodeByKey.get(k)?.r ?? 6;
+        const p = {
+          x: Math.max(r, Math.min(dims.w - r, s.x + dx)),
+          y: Math.max(r, Math.min(dims.h - r, s.y + dy)),
+        };
+        next[k] = p;
+        pinnedRef.current.set(k, p);
+      }
+      return next;
+    });
+  };
+
+  const onSvgPointerUp = (e: ReactPointerEvent) => {
+    const d = dragRef.current;
+    if (!d || e.pointerId !== d.pointerId) return;
+    svgRef.current?.releasePointerCapture(e.pointerId);
+    for (const k of d.keys) pinnedRef.current.delete(k);
+    dragRef.current = null;
+    setDraggingKey(null);
+    if (!d.moved) navigateTo(d.node); // a grab that never moved is a click
+  };
+
   const lineColor = theme === "dark" ? "oklch(1 0 0 / 55%)" : "oklch(0.2 0 0 / 65%)";
   const containColor = theme === "dark" ? "oklch(1 0 0 / 30%)" : "oklch(0.2 0 0 / 30%)";
 
@@ -223,8 +331,21 @@ export function Graph() {
     return "var(--color-primary)";
   };
 
+  // Paint the active node last so it sits on top (SVG has no z-index).
+  const raisedKey = draggingKey ?? hoveredKey;
+  const orderedNodes = raisedKey
+    ? [...nodes].sort((a, b) => (a.key === raisedKey ? 1 : 0) - (b.key === raisedKey ? 1 : 0))
+    : nodes;
+
   return (
-    <svg ref={svgRef} className="h-full w-full bg-muted/20">
+    <svg
+      ref={svgRef}
+      className="h-full w-full select-none bg-muted/20"
+      style={{ touchAction: "none" }}
+      onPointerMove={onSvgPointerMove}
+      onPointerUp={onSvgPointerUp}
+      onPointerCancel={onSvgPointerUp}
+    >
       {edges.map((e, i) => {
         const s = positions[e.source];
         const t = positions[e.target];
@@ -249,18 +370,23 @@ export function Graph() {
           />
         );
       })}
-      {nodes.map((n) => {
+      {orderedNodes.map((n) => {
         const p = positions[n.key];
         if (!p) return null;
-        const clickable = n.kind !== "folder";
+        const raised = n.key === raisedKey;
+        const label = n.title.length > 22 ? n.title.slice(0, 22) + "…" : n.title;
+        const labelW = label.length * 6.3 + 10;
         return (
           <g
             key={n.key}
             transform={`translate(${p.x}, ${p.y})`}
-            className={clickable ? "cursor-pointer" : "cursor-default"}
-            onClick={() => {
-              if (n.kind === "doc-personal") navigate(`/workspace/${n.id}`);
-              else if (n.kind === "doc-shared") navigate(`/shared/${n.id}`);
+            className={n.key === draggingKey ? "cursor-grabbing" : "cursor-grab"}
+            onPointerDown={(e) => onNodePointerDown(e, n)}
+            onPointerEnter={() => {
+              if (!dragRef.current) setHoveredKey(n.key);
+            }}
+            onPointerLeave={() => {
+              if (!dragRef.current) setHoveredKey((k) => (k === n.key ? null : k));
             }}
           >
             <circle
@@ -270,16 +396,28 @@ export function Graph() {
               strokeWidth={2}
               opacity={n.kind === "folder" ? 0.95 : 1}
             />
+            {raised && (
+              <rect
+                x={-labelW / 2}
+                y={-(n.r + 6) - 11}
+                width={labelW}
+                height={15}
+                rx={3}
+                fill="var(--color-background)"
+                opacity={0.9}
+              />
+            )}
             <text
               y={-(n.r + 6)}
               textAnchor="middle"
+              opacity={raised ? 1 : 0.55}
               className={
                 n.kind === "folder"
                   ? "fill-foreground text-[11px] font-semibold"
                   : "fill-foreground text-[11px]"
               }
             >
-              {n.title.length > 22 ? n.title.slice(0, 22) + "…" : n.title}
+              {label}
             </text>
           </g>
         );
