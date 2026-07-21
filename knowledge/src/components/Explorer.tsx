@@ -26,6 +26,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SideNavShell } from "./SideNavShell";
@@ -125,6 +126,44 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const toggle = (id: string) => setOpenFolders((s) => ({ ...s, [id]: !s[id] }));
 
+  // Name uniqueness is scoped to the same folder and owner (a file-system mental
+  // model), compared case-insensitively and trimmed — matching resolveWikiLink.
+  const norm = (s: string) => s.trim().toLowerCase();
+  const docNameTaken = (
+    title: string,
+    folderId: string | null,
+    ownerId: string,
+    excludeId?: string,
+  ) =>
+    documents.some(
+      (d) =>
+        d.owner_id === ownerId &&
+        (d.folder_id ?? null) === folderId &&
+        d.id !== excludeId &&
+        norm(d.title) === norm(title),
+    );
+  const folderNameTaken = (
+    name: string,
+    parentId: string | null,
+    ownerId: string,
+    excludeId?: string,
+  ) =>
+    folders.some(
+      (f) =>
+        f.owner_id === ownerId &&
+        (f.parent_id ?? null) === parentId &&
+        f.id !== excludeId &&
+        norm(f.name) === norm(name),
+    );
+  // Placeholder for a freshly created item: "Novo documento", then "Novo
+  // documento 2"… so even an un-renamed new item never collides with a sibling.
+  const uniqueName = (base: string, taken: (name: string) => boolean) => {
+    if (!taken(base)) return base;
+    let i = 2;
+    while (taken(`${base} ${i}`)) i++;
+    return `${base} ${i}`;
+  };
+
   // Create document inline: mirrors createFolder. The doc is created with a
   // placeholder title and immediately enters rename mode (file icon, empty
   // input). Committing an empty name deletes it; committing a name opens it
@@ -134,7 +173,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       const d = await documentsRepo.create({
         owner_id: ownerId,
         folder_id: folderId,
-        title: "Novo documento",
+        title: uniqueName("Novo documento", (name) => docNameTaken(name, folderId, ownerId)),
         content: "",
       });
       await refreshGatewayData();
@@ -159,7 +198,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       const f = await foldersRepo.create({
         owner_id: ownerId,
         parent_id: parentId,
-        name: "Nova pasta",
+        name: uniqueName("Nova pasta", (name) => folderNameTaken(name, parentId, ownerId)),
       });
       await refreshGatewayData();
       if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
@@ -205,8 +244,21 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         return;
       }
 
-      if (kind === "folder") await foldersRepo.update(id, { name: v });
-      else await documentsRepo.update(id, { title: v });
+      if (kind === "folder") {
+        const self = folders.find((f) => f.id === id);
+        if (self && folderNameTaken(v, self.parent_id ?? null, self.owner_id, id)) {
+          toast.error("Já existe uma pasta com esse nome nesta pasta.");
+          return; // keep the rename input open so the user can fix it
+        }
+        await foldersRepo.update(id, { name: v });
+      } else {
+        const self = documents.find((d) => d.id === id);
+        if (self && docNameTaken(v, self.folder_id ?? null, self.owner_id, id)) {
+          toast.error("Já existe um documento com esse nome nesta pasta.");
+          return; // keep the rename input open so the user can fix it
+        }
+        await documentsRepo.update(id, { title: v });
+      }
       await refreshGatewayData();
 
       if (isPendingNew) {
