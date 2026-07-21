@@ -7,6 +7,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
+import { isGatewayMode } from "@/lib/data/dataSource";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
 import type { Document, Folder } from "@/lib/types";
@@ -24,7 +25,7 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SideNavShell } from "./SideNavShell";
@@ -50,9 +51,32 @@ function isDescendant(allFolders: Folder[], candidateParentId: string, folderId:
 export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const folders = useDb((s) => s.folders);
-  const documents = useDb((s) => s.documents);
+  const mockFolders = useDb((s) => s.folders);
+  const mockDocuments = useDb((s) => s.documents);
   const users = useDb((s) => s.users);
+
+  // useDb only ever reflects the local mock store — in gateway mode, writes
+  // go to the real backend but nothing repopulates useDb from it, so a
+  // successfully created folder/document would never appear here (looked
+  // like the buttons did nothing, even though the gateway logged a 201).
+  // Fetch straight from the repos instead, and refetch after every mutation
+  // this component makes.
+  const [gatewayFolders, setGatewayFolders] = useState<Folder[]>([]);
+  const [gatewayDocuments, setGatewayDocuments] = useState<Document[]>([]);
+
+  const refreshGatewayData = async () => {
+    if (!isGatewayMode()) return;
+    const [f, d] = await Promise.all([foldersRepo.list(), documentsRepo.list()]);
+    setGatewayFolders(f);
+    setGatewayDocuments(d);
+  };
+
+  useEffect(() => {
+    refreshGatewayData();
+  }, []);
+
+  const folders = isGatewayMode() ? gatewayFolders : mockFolders;
+  const documents = isGatewayMode() ? gatewayDocuments : mockDocuments;
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [renaming, setRenaming] = useState<{ kind: "folder" | "document"; id: string } | null>(
@@ -104,6 +128,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         title: "Sem título",
         content: "",
       });
+      await refreshGatewayData();
       if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
       navigate(`/workspace/${d.id}`);
     } catch (err) {
@@ -121,6 +146,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         parent_id: parentId,
         name: "Nova pasta",
       });
+      await refreshGatewayData();
       if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
       setPendingNewFolders((s) => {
         const n = new Set(s);
@@ -149,6 +175,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         // Empty name: for a brand-new folder, delete it (can't save without a name).
         if (isPendingNew) {
           await foldersRepo.remove(renaming.id);
+          await refreshGatewayData();
           setPendingNewFolders((s) => {
             const n = new Set(s);
             n.delete(renaming.id);
@@ -162,6 +189,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
       if (renaming.kind === "folder") await foldersRepo.update(renaming.id, { name: v });
       else await documentsRepo.update(renaming.id, { title: v });
+      await refreshGatewayData();
 
       if (isPendingNew) {
         setPendingNewFolders((s) => {
@@ -182,6 +210,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       // Cancelling a brand-new folder without a name → delete it.
       if (renaming.kind === "folder" && pendingNewFolders.has(renaming.id) && !renameValue.trim()) {
         await foldersRepo.remove(renaming.id);
+        await refreshGatewayData();
         setPendingNewFolders((s) => {
           const n = new Set(s);
           n.delete(renaming.id);
@@ -214,6 +243,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     if (dragged.parent_id === targetFolder.id) return;
     try {
       await foldersRepo.update(draggedId, { parent_id: targetFolder.id });
+      await refreshGatewayData();
       setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
     } catch (err) {
       handleDomainError(err, navigate);
@@ -231,6 +261,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     if (dragged.parent_id === null) return;
     try {
       await foldersRepo.update(draggedId, { parent_id: null });
+      await refreshGatewayData();
     } catch (err) {
       handleDomainError(err, navigate);
     }
@@ -314,7 +345,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               onNewFolder={() => createFolder(folder.owner_id, folder.id)}
               onRename={() => startRename("folder", folder.id, folder.name)}
               onDelete={() =>
-                foldersRepo.remove(folder.id).catch((err) => handleDomainError(err, navigate))
+                foldersRepo
+                  .remove(folder.id)
+                  .then(refreshGatewayData)
+                  .catch((err) => handleDomainError(err, navigate))
               }
               itemName={folder.name}
               isFolder
@@ -364,7 +398,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         <FolderMenu
           onRename={() => startRename("document", doc.id, doc.title)}
           onDelete={() =>
-            documentsRepo.remove(doc.id).catch((err) => handleDomainError(err, navigate))
+            documentsRepo
+              .remove(doc.id)
+              .then(refreshGatewayData)
+              .catch((err) => handleDomainError(err, navigate))
           }
           itemName={doc.title || "Sem título"}
         />
