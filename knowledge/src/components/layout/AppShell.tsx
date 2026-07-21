@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Compass,
   FolderTree,
+  HelpCircle,
   Home,
   LogOut,
   Menu,
@@ -39,6 +40,7 @@ const NAV: NavItem[] = [
   { to: "/favorites", label: "Favoritos", icon: Star },
   { to: "/recent", label: "Recentes", icon: Timer },
   { to: "/admin", label: "Administração", icon: Shield, managerOnly: true },
+  { to: "/ajuda", label: "Ajuda", icon: HelpCircle },
 ];
 
 const COLLAPSE_KEY = "kv:sidebar:collapsed:v1";

@@ -19,6 +19,7 @@ import { GraphPage } from "./routes/graph";
 import { FavoritesPage } from "./routes/favorites";
 import { RecentPage } from "./routes/recent";
 import { AdminPage } from "./routes/admin";
+import { HelpPage } from "./routes/help";
 
 function NotFoundPage() {
   return (
@@ -122,6 +123,7 @@ export function App() {
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/recent" element={<RecentPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/ajuda" element={<HelpPage />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />
