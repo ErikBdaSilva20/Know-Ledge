@@ -1,6 +1,6 @@
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { FolderTree } from "@/components/FolderTree";
-import { PublishToSharedButton } from "@/components/PublishToSharedButton";
+import { FolderTree, collectDocsInSubtree } from "@/components/FolderTree";
+import { PublishManyButton, PublishToSharedButton } from "@/components/PublishToSharedButton";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -169,17 +169,28 @@ export function AdminPage() {
                   <span className="text-sm font-medium">
                     {userMap.get(g.ownerId)?.name ?? "Dono desconhecido"}
                   </span>
-                  <span className="ml-auto text-xs text-muted-foreground">
+                  <span className="text-xs text-muted-foreground">
                     {g.folders.length} pastas · {g.docs.length} docs
                   </span>
+                  <div className="ml-auto">
+                    <PublishManyButton
+                      docs={g.docs}
+                      label="Publicar vault inteiro"
+                      onPublished={refreshShared}
+                    />
+                  </div>
                 </div>
                 <div className="p-2">
                   <FolderTree
                     folders={g.folders}
                     documents={g.docs}
                     docAction={(doc) => (
-                      <PublishToSharedButton
-                        documentId={doc.id}
+                      <PublishToSharedButton doc={doc} onPublished={refreshShared} compact />
+                    )}
+                    folderAction={(folder) => (
+                      <PublishManyButton
+                        docs={collectDocsInSubtree(folder.id, g.folders, g.docs)}
+                        label="Publicar pasta"
                         onPublished={refreshShared}
                         compact
                       />

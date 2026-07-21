@@ -102,7 +102,7 @@ export function WorkspaceDoc() {
               />
               {favorite ? "Favorito" : "Favoritar"}
             </Button>
-            <PublishToSharedButton documentId={doc.id} />
+            <PublishToSharedButton doc={doc} />
             {canEdit && (
               <ConfirmDialog
                 title={`Excluir "${doc.title || "Sem título"}"?`}
