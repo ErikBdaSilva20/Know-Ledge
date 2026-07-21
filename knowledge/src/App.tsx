@@ -6,6 +6,7 @@ import { useSession } from "./lib/session";
 import { AppShell } from "./components/layout/AppShell";
 
 import { LoginPage } from "./routes/login";
+import { SignUpPage } from "./routes/signup";
 import { Dashboard } from "./routes/dashboard";
 import { WorkspaceLayout } from "./routes/workspace";
 import { WorkspaceIndex } from "./routes/workspace-index";
@@ -71,16 +72,18 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
-/** Redirects unauthenticated users to /login, and authenticated users away from /login. */
+const PUBLIC_PATHS = new Set(["/login", "/signup"]);
+
+/** Redirects unauthenticated users to /login, and authenticated users away from /login or /signup. */
 function RequireAuth() {
   const { user } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user && location.pathname !== "/login") {
+    if (!user && !PUBLIC_PATHS.has(location.pathname)) {
       navigate("/login", { replace: true });
-    } else if (user && (location.pathname === "/login" || location.pathname === "/")) {
+    } else if (user && (PUBLIC_PATHS.has(location.pathname) || location.pathname === "/")) {
       navigate("/dashboard", { replace: true });
     }
   }, [user, location.pathname, navigate]);
@@ -102,6 +105,7 @@ export function App() {
       <Routes>
         <Route element={<RequireAuth />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
           <Route path="/" element={null} />
           <Route element={<ShellLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />

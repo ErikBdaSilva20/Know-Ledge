@@ -2,66 +2,30 @@ import { useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
-import { auth } from "@/lib/data/client";
-import { isGatewayMode } from "@/lib/data/dataSource";
-import { handleDomainError } from "@/lib/handleError";
+import { isGatewayMode, setDevPreviewActive } from "@/lib/data/dataSource";
+import { AuthSplitLayout } from "@/components/auth/AuthSplitLayout";
+import { GatewayAuthForm } from "@/components/auth/GatewayAuthForm";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Compass } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { Role } from "@/lib/types";
 
-// Story 1.6 AC#4 — in gateway mode there is no mock session to pick from, so
-// this renders a real email+password form against auth.signIn() instead of
-// the role picker below. Without this branch, clicking "Entrar" against a
-// real gateway called the mock's setUserId() (a no-op there, Story 1.6) and
-// silently went nowhere — confirmed against the tenant-local harness.
-function GatewayLoginForm() {
-  const { refreshGatewaySession } = useSession();
-  const navigate = useNavigate();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-
-  const submit = async () => {
-    setSubmitting(true);
-    try {
-      await auth.signIn(email, password);
-      await refreshGatewaySession();
-      navigate("/dashboard");
-    } catch (err) {
-      handleDomainError(err, navigate);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
+// Dev-only escape hatch (see dataSource.ts): flips the app into mock mode at
+// runtime so the 3 mocked roles can be eyeballed without editing .env.local +
+// rebuilding. Never rendered in prod builds (import.meta.env.DEV is false).
+function DevPreviewLink() {
   return (
-    <>
-      <h1 className="text-2xl font-semibold tracking-tight">Entrar</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Conectado ao gateway em <code>{import.meta.env.VITE_GATEWAY_URL}</code>.
-      </p>
-      <div className="mt-6 space-y-3">
-        <Input
-          type="email"
-          placeholder="email@exemplo.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-        />
-        <Input
-          type="password"
-          placeholder="senha"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && submit()}
-        />
-      </div>
-      <Button className="mt-6 w-full" disabled={!email || !password || submitting} onClick={submit}>
-        {submitting ? "Entrando…" : "Entrar"}
-      </Button>
-    </>
+    <button
+      type="button"
+      onClick={() => {
+        setDevPreviewActive(true);
+        window.location.reload();
+      }}
+      className="mt-4 text-xs text-muted-foreground underline-offset-2 hover:text-foreground hover:underline"
+    >
+      Preview mockado (dev) — ver telas como rep / gestor / admin
+    </button>
   );
 }
 
@@ -137,14 +101,19 @@ export function LoginPage() {
   }, [user, navigate]);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <div className="w-full max-w-md">
-        <div className="mb-8 flex items-center gap-2">
-          <Compass className="h-6 w-6 text-primary" />
-          <span className="text-lg font-semibold tracking-tight">Knowledge Vault</span>
-        </div>
-        {isGatewayMode() ? <GatewayLoginForm /> : <MockLoginPicker />}
+    <AuthSplitLayout>
+      <div className="mb-8 flex items-center gap-2">
+        <Compass className="h-6 w-6 text-primary" />
+        <span className="text-lg font-semibold tracking-tight">Knowledge Vault</span>
       </div>
-    </div>
+      {isGatewayMode() ? (
+        <>
+          <GatewayAuthForm mode="signin" />
+          {import.meta.env.DEV && <DevPreviewLink />}
+        </>
+      ) : (
+        <MockLoginPicker />
+      )}
+    </AuthSplitLayout>
   );
 }

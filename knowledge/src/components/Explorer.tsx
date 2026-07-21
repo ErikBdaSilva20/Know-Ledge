@@ -1,23 +1,3 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  ChevronDown,
-  ChevronRight,
-  FilePlus,
-  FolderPlus,
-  FileText,
-  Folder as FolderIcon,
-  MoreHorizontal,
-  Trash2,
-  Pencil,
-  PanelLeft,
-} from "lucide-react";
-import type { Document, Folder } from "@/lib/types";
-import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/data/documents.repo";
-import { foldersRepo } from "@/lib/data/folders.repo";
-import { handleDomainError } from "@/lib/handleError";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -25,9 +5,29 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
+import { handleDomainError } from "@/lib/handleError";
+import { useSession } from "@/lib/session";
+import type { Document, Folder } from "@/lib/types";
+import { useDb } from "@/lib/useDb";
+import { cn } from "@/lib/utils";
+import {
+  ChevronDown,
+  ChevronRight,
+  FilePlus,
+  FileText,
+  Folder as FolderIcon,
+  FolderPlus,
+  MoreHorizontal,
+  PanelLeft,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
 import { SideNavShell } from "./SideNavShell";
-import { cn } from "@/lib/utils";
 
 interface Props {
   activeDocId?: string;

@@ -1,17 +1,17 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { handleDomainError } from "@/lib/handleError";
-import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useSession } from "@/lib/session";
 import type { Role } from "@/lib/types";
+import { useDb } from "@/lib/useDb";
+import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 export function AdminPage() {
   const { can } = useSession();

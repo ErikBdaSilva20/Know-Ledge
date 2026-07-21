@@ -3,11 +3,11 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-kv}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-kv_local_dev}
-      POSTGRES_DB: ${POSTGRES_DB:-knowledge_vault}
+      POSTGRES_USER: KnowLedge
+      POSTGRES_PASSWORD: dev123
+      POSTGRES_DB: knowdb
     ports:
-      - "${POSTGRES_PORT:-55432}:5432"
+      - "5432:5432"
     volumes:
       - kv_tenant_local_data:/var/lib/postgresql/data
       # Order matters: Better-Auth-shaped tables first, then the app schema
@@ -15,7 +15,7 @@ services:
       - ./init-db/00_better_auth.sql:/docker-entrypoint-initdb.d/00_better_auth.sql:ro
       - ../supabase/migrations/0001_business_schema.sql:/docker-entrypoint-initdb.d/01_business_schema.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-kv}"]
+      test: ["CMD-SHELL", "pg_isready -U KnowLedge -d knowdb"]
       interval: 2s
       timeout: 3s
       retries: 30
@@ -27,12 +27,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://${POSTGRES_USER:-kv}:${POSTGRES_PASSWORD:-kv_local_dev}@postgres:5432/${POSTGRES_DB:-knowledge_vault}
-      TENANT_ID: ${TENANT_ID:-local-dev}
-      DEV_ORIGIN: ${DEV_ORIGIN:-http://localhost:5173}
+      DATABASE_URL: postgres://KnowLedge:dev@postgres:5432/knowdb
+      TENANT_ID: local-dev
+      DEV_ORIGIN: http://localhost:5173
       PORT: 8787
     ports:
-      - "${GATEWAY_PORT:-8787}:8787"
+      - "8787:8787"
     volumes:
       - ./mock-gateway/src:/app/src:ro
 

@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Compass,
+  Eye,
   FolderTree,
   Home,
   Menu,
@@ -20,6 +21,7 @@ import { RoleSwitcher } from "./RoleSwitcher";
 import { useSession } from "@/lib/session";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
+import { isDevPreviewActive, setDevPreviewActive } from "@/lib/data/dataSource";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -123,7 +125,7 @@ function SidebarInner({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user } = useSession();
+  const { user, setUserId } = useSession();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -193,6 +195,21 @@ export function AppShell({ children }: { children: ReactNode }) {
               "Sem sessão"
             )}
           </div>
+          {isDevPreviewActive() && (
+            <button
+              type="button"
+              onClick={() => {
+                setDevPreviewActive(false);
+                setUserId(null);
+                window.location.href = "/login";
+              }}
+              title="Sair do preview mockado e voltar ao gateway real"
+              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
+            >
+              <Eye className="h-3 w-3" />
+              Preview mock · voltar ao gateway
+            </button>
+          )}
           <Button
             variant="ghost"
             size="icon"
