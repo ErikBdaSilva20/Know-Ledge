@@ -18,6 +18,8 @@ interface Props {
   readOnly?: boolean;
 }
 
+const AUTOSAVE_DEBOUNCE_MS = 5000;
+
 interface PaneToggleProps {
   active: boolean;
   disabled?: boolean;
@@ -138,7 +140,9 @@ export function Editor({ scope, id, readOnly }: Props) {
 
   useEffect(() => {
     if (!dirty || !doc) return;
-    saveTimeoutRef.current = setTimeout(runSave, 500);
+    // Debounced 5s after the last keystroke — avoids a network save on every
+    // character while the user is still actively typing.
+    saveTimeoutRef.current = setTimeout(runSave, AUTOSAVE_DEBOUNCE_MS);
     return () => {
       if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
