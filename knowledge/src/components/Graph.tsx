@@ -1,6 +1,12 @@
 import { useMemo, useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { documentReferencesRepo } from "@/lib/data/documentReferences.repo";
+import { sharedDocumentReferencesRepo } from "@/lib/data/sharedDocumentReferences.repo";
 import { useSession } from "@/lib/session";
 import { useTheme } from "@/lib/theme";
 
@@ -31,11 +37,16 @@ export function Graph() {
   const { user, can } = useSession();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const documents = useDb((s) => s.documents);
-  const folders = useDb((s) => s.folders);
-  const sharedDocs = useDb((s) => s.shared_documents);
-  const personalRefs = useDb((s) => s.document_references);
-  const sharedRefs = useDb((s) => s.shared_document_references);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockFolders = useDb((s) => s.folders);
+  const mockSharedDocs = useDb((s) => s.shared_documents);
+  const mockPersonalRefs = useDb((s) => s.document_references);
+  const mockSharedRefs = useDb((s) => s.shared_document_references);
+  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
+  const { data: sharedDocs } = useGatewayList(mockSharedDocs, sharedDocumentsRepo.list);
+  const { data: personalRefs } = useGatewayList(mockPersonalRefs, documentReferencesRepo.list);
+  const { data: sharedRefs } = useGatewayList(mockSharedRefs, sharedDocumentReferencesRepo.list);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const [dims, setDims] = useState({ w: 800, h: 600 });

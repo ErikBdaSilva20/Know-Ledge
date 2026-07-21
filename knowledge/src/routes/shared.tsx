@@ -1,6 +1,7 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,7 +12,12 @@ import { SideNavShell } from "@/components/SideNavShell";
 import { cn } from "@/lib/utils";
 
 export function SharedLayout() {
-  const shared = useDb((s) => s.shared_documents);
+  const mockShared = useDb((s) => s.shared_documents);
+  const { data: shared, refresh: refreshShared } = useGatewayList(
+    mockShared,
+    sharedDocumentsRepo.list,
+  );
+  // No gateway endpoint lists users yet (known gap) — stays mock-only.
   const users = useDb((s) => s.users);
   const { user, can } = useSession();
   const navigate = useNavigate();
@@ -56,6 +62,7 @@ export function SharedLayout() {
                       source_document_id: null,
                       published_by: user.id,
                     });
+                    await refreshShared();
                     navigate(`/shared/${s.id}`);
                   } catch (err) {
                     handleDomainError(err, navigate);

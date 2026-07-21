@@ -8,7 +8,9 @@ import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { documentsRepo } from "@/lib/data/documents.repo";
 import { isGatewayMode } from "@/lib/data/dataSource";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import type { SharedDocument } from "@/lib/types";
@@ -34,14 +36,20 @@ export function SharedDoc() {
   }, [docId]);
 
   const doc = isGatewayMode() ? gatewayDoc : mockDoc;
+  // No gateway endpoint lists users yet (known gap) — stays mock-only.
   const publishedBy = useDb((s) => (doc ? s.users.find((u) => u.id === doc.published_by) : null));
-  const sourceDoc = useDb((s) =>
-    doc?.source_document_id ? s.documents.find((d) => d.id === doc.source_document_id) : null,
+  const mockDocuments = useDb((s) => s.documents);
+  const { data: allDocuments } = useGatewayList(mockDocuments, documentsRepo.list);
+  const sourceDoc = doc?.source_document_id
+    ? (allDocuments.find((d) => d.id === doc.source_document_id) ?? null)
+    : null;
+  const mockFavorites = useDb((s) => s.favorites);
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
+    mockFavorites,
+    favoritesRepo.list,
   );
-  const favorite = useDb((s) =>
-    s.favorites.find(
-      (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
-    ),
+  const favorite = allFavorites.find(
+    (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
   );
 
   const canEdit = can("editShared");
@@ -86,6 +94,7 @@ export function SharedDoc() {
                     document_scope: "shared",
                     document_id: docId,
                   });
+                await refreshFavorites();
               } catch (err) {
                 handleDomainError(err, navigate);
               }

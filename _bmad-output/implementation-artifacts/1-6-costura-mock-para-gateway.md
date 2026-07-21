@@ -4,7 +4,7 @@ baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
 
 # Story 1.6: Costura mock → gateway (a troca sem redesenhar telas)
 
-Status: in-progress
+Status: review
 
 ## Story
 
@@ -32,10 +32,10 @@ so that **a promessa do brief se cumpra: "só trocar a implementação dos repos
 - [x] Task 4: Substituir auth mock por Better-Auth (`auth.me`, signIn/up/out) (AC: #4)
 - [x] Task 5: Definir a flag `VITE_DATA_SOURCE` e como o E7 a usa (AC: #5)
 - [x] Task 6: Checklist de regressão por tela (AC: #6)
-- [ ] Task 7: Reaberta a partir de `_bmad-output/AUDITORIA-DADOS-MOCKADOS-E-BUGS.md` (2026-07-21) — a checklist de regressão da Task 6 foi só estrutural (`tsc`/`build`/`lint`), sem passe manual em cada tela; a auditoria achou que o padrão `useDb` (mock) sem branch `isGatewayMode()` está espalhado pelas telas de leitura. AC#6 ("cada tela do brief funciona idêntica após a troca") só é satisfeito de fato quando os 3 subitens abaixo fecharem.
+- [x] Task 7: Reaberta a partir de `_bmad-output/AUDITORIA-DADOS-MOCKADOS-E-BUGS.md` (2026-07-21) — a checklist de regressão da Task 6 foi só estrutural (`tsc`/`build`/`lint`), sem passe manual em cada tela; a auditoria achou que o padrão `useDb` (mock) sem branch `isGatewayMode()` está espalhado pelas telas de leitura. AC#6 ("cada tela do brief funciona idêntica após a troca") só é satisfeito de fato quando os 3 subitens abaixo fecharem. Todos os 3 fecharam nesta sessão; status vai para `review` (não `done`) porque falta o passe manual em navegador — ver nota de verificação abaixo.
   - [x] Subtask 7.1 (bloco 1/3 — achado crítico #1): `Editor.tsx` não abria nenhum documento em modo gateway (`doc` sempre `undefined` via mock). Corrigido em `Editor.tsx`, `workspace-doc.tsx`, `shared-doc.tsx` — busca via `documentsRepo`/`sharedDocumentsRepo`.list() quando `isGatewayMode()`. `tsc --noEmit` e `npm run build` limpos.
   - [x] Subtask 7.2 (bloco 2/3 — achado crítico #2): `syncRefs.ts` (`syncPersonalRefs`/`syncSharedRefs`) grava só no mock — `document_references`/`shared_document_references` nunca eram escritas no gateway real. Corrigido: as duas funções (+ `syncAllRefsFor`) agora são `async` e, em modo gateway, buscam via repo e fazem *diff* do conjunto de arestas desejado contra o existente (create só do que falta, remove só do que sobrou) em vez do delete-all-then-recreate do mock. Ainda bloqueia Backlinks/Grafo até o bloco 3 (eles continuam lendo do mock).
-  - [ ] Subtask 7.3 (bloco 3/3 — achado #3): telas de listagem (`dashboard`, `admin`, `favorites`, `recent`, `search`, `shared`, `shared-doc`, `workspace-doc`, `Graph`, `Backlinks`) leem `useDb` sem branch de gateway — sempre vazias/desatualizadas em modo gateway.
+  - [x] Subtask 7.3 (bloco 3/3 — achado #3): telas de listagem (`dashboard`, `admin`, `favorites`, `recent`, `search`, `shared`, `shared-doc`, `workspace-doc`, `Graph`, `Backlinks`) liam `useDb` sem branch de gateway — sempre vazias/desatualizadas em modo gateway. Corrigido com um hook compartilhado `useGatewayList` (ver notas abaixo) em vez de repetir o padrão inline 10 vezes.
 
 ## Dev Notes
 
@@ -99,6 +99,15 @@ Claude Sonnet 5 (Amelia persona)
 - Ainda não fecha Backlinks/Grafo (achado #7) — eles continuam lendo do mock; é o bloco 3.
 - Verificado: `npx tsc --noEmit` limpo, `npm run build` limpo, `npm run lint` sem erros novos (2 warnings pré-existentes de `react-hooks/exhaustive-deps` em `Editor.tsx`, nenhum novo). Sem browser automation nesta sessão.
 
+### 2026-07-21 — Reabertura (Task 7, bloco 3/3)
+
+- 10 arquivos liam `useDb` direto (mock) sem branch `isGatewayMode()`: `dashboard.tsx`, `admin.tsx`, `favorites.tsx`, `recent.tsx`, `search.tsx`, `shared.tsx`, `shared-doc.tsx`, `workspace-doc.tsx`, `Graph.tsx`, `Backlinks.tsx`.
+- **Decisão de arquitetura consultada com o Erik antes de codar** (a própria auditoria deixou em aberto): dado o volume (10 arquivos repetindo o mesmo padrão fetch-on-mount + refresh), extraí um hook compartilhado em vez de repetir inline 10x como o `Explorer.tsx` fez para 2 coleções. Novo `knowledge/src/lib/useGatewayList.ts`: `useGatewayList(mockValue, list)` recebe o valor já selecionado do mock (reativo via `useDb`) e a função `.list` **estável** do repo (não uma closure inline — evitaria refetch a cada render); em modo mock devolve o valor do mock direto, em modo gateway busca on-mount e expõe `refresh()` pra chamar depois de qualquer mutação própria da tela. Escala melhor que 10 cópias do bloco do Explorer: qualquer melhoria futura (cache, retry, loading state) se aplica uma vez só.
+- `favorites.tsx`, `workspace-doc.tsx`, `shared-doc.tsx` chamam `refresh()` depois de `favoritesRepo.create/remove` (favoritar/desfavoritar); `admin.tsx` depois de `documentsRepo.remove`/`sharedDocumentsRepo.remove`; `shared.tsx` depois de `sharedDocumentsRepo.create` (antes do `navigate`, pra lista já vir atualizada quando o usuário voltar).
+- `computeBacklinks` (`lib/backlinks.ts`) tomava o `DbState` inteiro do mock como parâmetro — mudei a assinatura pra um tipo `BacklinksSource` só com os 4 campos que ela realmente lê (`documents`, `shared_documents`, `document_references`, `shared_document_references`), desacoplando de `mockDb` de vez. `Backlinks.tsx` monta esse objeto a partir de 4 `useGatewayList` (mock ou gateway) em vez de um único `useDb(computeBacklinks)`.
+- **Gap conhecido, não fechado (decisão consciente, já documentada nos achados desde a Story original):** `users` não tem endpoint no gateway — `admin.tsx` (aba Usuários), `shared.tsx`/`workspace-doc.tsx`/`shared-doc.tsx` (nome de dono/publicador) continuam lendo `useDb((s) => s.users)` em todo modo. Fora de escopo desta correção.
+- Verificado: `npx tsc --noEmit` limpo, `npm run build` limpo, `npm run lint` sem erros novos (mesmos warnings pré-existentes de antes do bloco 3, nenhum novo). Sem browser automation nesta sessão — ambiente local (`docker compose` + `dev:gateway`) segue de pé em `localhost:8787`/`localhost:5174` pro Erik confirmar visualmente antes de fechar como `done`.
+
 ### File List
 
 - `knowledge/src/lib/data/dataSource.ts` (novo)
@@ -111,3 +120,7 @@ Claude Sonnet 5 (Amelia persona)
 - `knowledge/src/lib/syncRefs.ts` (2026-07-21, bloco 2/3 — branch gateway com diff create/remove, em vez de delete-all-then-recreate)
 - `knowledge/src/components/Editor.tsx` (2026-07-21, bloco 2/3 — `syncAllRefsFor(...).catch(handleDomainError)`)
 - `knowledge/src/routes/workspace-doc.tsx` (2026-07-21, bloco 2/3 — `syncSharedRefs(...).catch(handleDomainError)`)
+- `knowledge/src/lib/useGatewayList.ts` (novo, 2026-07-21, bloco 3/3 — hook compartilhado fetch-on-mount + refresh)
+- `knowledge/src/lib/backlinks.ts` (2026-07-21, bloco 3/3 — `computeBacklinks` desacoplado de `DbState`)
+- `knowledge/src/routes/dashboard.tsx`, `admin.tsx`, `favorites.tsx`, `recent.tsx`, `search.tsx`, `shared.tsx`, `shared-doc.tsx`, `workspace-doc.tsx` (2026-07-21, bloco 3/3 — leitura via `useGatewayList` em vez de `useDb` puro)
+- `knowledge/src/components/Graph.tsx`, `Backlinks.tsx` (2026-07-21, bloco 3/3 — idem)

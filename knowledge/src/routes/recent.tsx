@@ -1,13 +1,18 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Card } from "@/components/ui/card";
 import { BookOpen, FileText } from "lucide-react";
 
 export function RecentPage() {
-  const documents = useDb((s) => s.documents);
-  const shared = useDb((s) => s.shared_documents);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockShared = useDb((s) => s.shared_documents);
+  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: shared } = useGatewayList(mockShared, sharedDocumentsRepo.list);
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   useEffect(() => {
     const update = () => setRecents(getRecents());

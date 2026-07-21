@@ -1,20 +1,24 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { documentsRepo } from "@/lib/data/documents.repo";
-import { handleDomainError } from "@/lib/handleError";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FileText, Plus, Star, Timer } from "lucide-react";
+import { FileText, Star, Timer } from "lucide-react";
 
 export function Dashboard() {
   const { user } = useSession();
-  const navigate = useNavigate();
-  const documents = useDb((s) => s.documents);
-  const sharedDocs = useDb((s) => s.shared_documents);
-  const favorites = useDb((s) => s.favorites);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockSharedDocs = useDb((s) => s.shared_documents);
+  const mockFavorites = useDb((s) => s.favorites);
+  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: sharedDocs } = useGatewayList(mockSharedDocs, sharedDocumentsRepo.list);
+  const { data: favorites } = useGatewayList(mockFavorites, favoritesRepo.list);
 
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   useEffect(() => {
@@ -60,24 +64,6 @@ export function Dashboard() {
       </div>
 
       <div className="mb-8 flex flex-wrap gap-2">
-        <Button
-          onClick={async () => {
-            try {
-              const d = await documentsRepo.create({
-                owner_id: user.id,
-                title: "Sem título",
-                content: "",
-                folder_id: null,
-              });
-              navigate(`/workspace/${d.id}`);
-            } catch (err) {
-              handleDomainError(err, navigate);
-            }
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo documento
-        </Button>
         <Button variant="outline" asChild>
           <Link to="/workspace">Abrir Workspace</Link>
         </Button>

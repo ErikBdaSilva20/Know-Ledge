@@ -10,6 +10,7 @@ import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { isGatewayMode } from "@/lib/data/dataSource";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { syncSharedRefs } from "@/lib/syncRefs";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -39,11 +40,15 @@ export function WorkspaceDoc() {
   }, [docId]);
 
   const doc = isGatewayMode() ? gatewayDoc : mockDoc;
+  // No gateway endpoint lists users yet (known gap) — stays mock-only.
   const owner = useDb((s) => (doc ? s.users.find((u) => u.id === doc.owner_id) : null));
-  const favorite = useDb((s) =>
-    s.favorites.find(
-      (f) => f.owner_id === user?.id && f.document_scope === "personal" && f.document_id === docId,
-    ),
+  const mockFavorites = useDb((s) => s.favorites);
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
+    mockFavorites,
+    favoritesRepo.list,
+  );
+  const favorite = allFavorites.find(
+    (f) => f.owner_id === user?.id && f.document_scope === "personal" && f.document_id === docId,
   );
 
   const isOwner = doc?.owner_id === user?.id;
@@ -88,6 +93,7 @@ export function WorkspaceDoc() {
                       document_scope: "personal",
                       document_id: docId,
                     });
+                  await refreshFavorites();
                 } catch (err) {
                   handleDomainError(err, navigate);
                 }

@@ -4,11 +4,13 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
 import type { Role } from "@/lib/types";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -16,10 +18,21 @@ import { Link, useNavigate } from "react-router-dom";
 export function AdminPage() {
   const { can } = useSession();
   const navigate = useNavigate();
-  const documents = useDb((s) => s.documents);
-  const folders = useDb((s) => s.folders);
-  const shared = useDb((s) => s.shared_documents);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockFolders = useDb((s) => s.folders);
+  const mockShared = useDb((s) => s.shared_documents);
+  // No gateway endpoint lists users yet (known gap, see AUDITORIA-DADOS-MOCKADOS-E-BUGS.md) —
+  // stays mock-only in every mode.
   const users = useDb((s) => s.users);
+  const { data: documents, refresh: refreshDocuments } = useGatewayList(
+    mockDocuments,
+    documentsRepo.list,
+  );
+  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
+  const { data: shared, refresh: refreshShared } = useGatewayList(
+    mockShared,
+    sharedDocumentsRepo.list,
+  );
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [q, setQ] = useState("");
 
@@ -103,7 +116,10 @@ export function AdminPage() {
                     title={`Excluir "${d.title}"?`}
                     description="Exclusão permanente. Não pode ser desfeita."
                     onConfirm={() =>
-                      documentsRepo.remove(d.id).catch((err) => handleDomainError(err, navigate))
+                      documentsRepo
+                        .remove(d.id)
+                        .then(refreshDocuments)
+                        .catch((err) => handleDomainError(err, navigate))
                     }
                   >
                     <Button
@@ -141,6 +157,7 @@ export function AdminPage() {
                     onConfirm={() =>
                       sharedDocumentsRepo
                         .remove(s.id)
+                        .then(refreshShared)
                         .catch((err) => handleDomainError(err, navigate))
                     }
                   >
