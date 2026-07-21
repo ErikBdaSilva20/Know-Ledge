@@ -52,7 +52,9 @@ export function SharedDoc() {
     (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
   );
 
-  const canEdit = can("editShared");
+  // Shared content is immutable (the Editor enforces read-only for scope
+  // "shared"); this only gates curation — removing the doc from the Base.
+  const canManage = can("editShared");
 
   if (!doc || !docId) {
     return (
@@ -105,7 +107,7 @@ export function SharedDoc() {
             />
             {favorite ? "Favorito" : "Favoritar"}
           </Button>
-          {canEdit && (
+          {canManage && (
             <ConfirmDialog
               title={`Remover "${doc.title}" da Base Compartilhada?`}
               description="O documento será excluído permanentemente da Base Compartilhada. O documento original (se houver) não é afetado."
@@ -128,7 +130,7 @@ export function SharedDoc() {
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <Backlinks scope="shared" id={docId} />
-        <Editor scope="shared" id={docId} readOnly={!canEdit} />
+        <Editor scope="shared" id={docId} readOnly />
       </div>
     </div>
   );

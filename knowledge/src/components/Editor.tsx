@@ -72,6 +72,12 @@ export function Editor({ scope, id, readOnly }: Props) {
 
   const doc = isGatewayMode() ? gatewayDoc : scope === "personal" ? mockPersonal : mockShared;
 
+  // A published shared document is an immutable snapshot — nobody edits it in
+  // place, not even the original author (they edit the personal source and
+  // re-publish). Enforce that here so the invariant holds regardless of what
+  // any caller passes, not just at the SharedDoc call site.
+  const isReadOnly = readOnly || scope === "shared";
+
   const [title, setTitle] = useState(doc?.title ?? "");
   const [content, setContent] = useState(doc?.content ?? "");
   const [dirty, setDirty] = useState(false);
@@ -202,7 +208,7 @@ export function Editor({ scope, id, readOnly }: Props) {
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
         <input
           value={title}
-          disabled={readOnly}
+          disabled={isReadOnly}
           onChange={(e) => {
             setTitle(e.target.value);
             setDirty(true);
@@ -220,7 +226,7 @@ export function Editor({ scope, id, readOnly }: Props) {
           ) : (
             <span className="hidden sm:inline">Salvo</span>
           )}
-          {!readOnly && (
+          {!isReadOnly && (
             <Button
               variant="ghost"
               size="sm"
@@ -264,7 +270,7 @@ export function Editor({ scope, id, readOnly }: Props) {
             <div className={cn("relative", showPreview && "border-r border-border")}>
               <textarea
                 value={content}
-                readOnly={readOnly}
+                readOnly={isReadOnly}
                 onChange={handleContentChange}
                 onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
                 placeholder="Escreva em Markdown… use [[ para linkar outros documentos"
