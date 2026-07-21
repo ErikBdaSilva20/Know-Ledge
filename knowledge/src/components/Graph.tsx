@@ -322,7 +322,10 @@ export function Graph() {
     if (!d.moved) navigateTo(d.node); // a grab that never moved is a click
   };
 
-  const lineColor = theme === "dark" ? "oklch(1 0 0 / 55%)" : "oklch(0.2 0 0 / 65%)";
+  // Palette is monochrome (chart tokens go grayscale in dark mode), so reference
+  // vs containment is distinguished by form, not hue: a strong solid arrow into
+  // the target for "references", a faint dashed line for "contained in".
+  const refColor = "var(--foreground)";
   const containColor = theme === "dark" ? "oklch(1 0 0 / 30%)" : "oklch(0.2 0 0 / 30%)";
 
   const colorFor = (kind: NodeKind) => {
@@ -346,27 +349,54 @@ export function Graph() {
       onPointerUp={onSvgPointerUp}
       onPointerCancel={onSvgPointerUp}
     >
+      <defs>
+        <marker
+          id="graph-ref-arrow"
+          viewBox="0 0 8 8"
+          refX={7}
+          refY={4}
+          markerWidth={5}
+          markerHeight={5}
+          orient="auto-start-reverse"
+        >
+          <path d="M0 0 L8 4 L0 8 z" fill={refColor} />
+        </marker>
+      </defs>
       {edges.map((e, i) => {
         const s = positions[e.source];
         const t = positions[e.target];
         if (!s || !t) return null;
+        const isRef = e.kind === "ref";
         // Curved edge: quadratic Bezier with perpendicular offset
         const dx = t.x - s.x;
         const dy = t.y - s.y;
         const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-        const curvature = e.kind === "contain" ? 0.08 : 0.18;
+        const curvature = isRef ? 0.18 : 0.08;
         const nx = -dy / dist;
         const ny = dx / dist;
         const mx = (s.x + t.x) / 2 + nx * dist * curvature;
         const my = (s.y + t.y) / 2 + ny * dist * curvature;
+        // Reference edges stop at the target's rim so the arrowhead reads
+        // cleanly instead of hiding under the node.
+        let ex = t.x;
+        let ey = t.y;
+        if (isRef) {
+          const tr = nodeByKey.get(e.target)?.r ?? 6;
+          const tdx = t.x - mx;
+          const tdy = t.y - my;
+          const tl = Math.hypot(tdx, tdy) || 1;
+          ex = t.x - (tdx / tl) * (tr + 3);
+          ey = t.y - (tdy / tl) * (tr + 3);
+        }
         return (
           <path
             key={i}
-            d={`M ${s.x} ${s.y} Q ${mx} ${my} ${t.x} ${t.y}`}
+            d={`M ${s.x} ${s.y} Q ${mx} ${my} ${ex} ${ey}`}
             fill="none"
-            stroke={e.kind === "contain" ? containColor : lineColor}
-            strokeWidth={e.kind === "contain" ? 1 : 1.25}
-            strokeDasharray={e.kind === "contain" ? "3 3" : undefined}
+            stroke={isRef ? refColor : containColor}
+            strokeWidth={isRef ? 1.75 : 1}
+            strokeDasharray={isRef ? undefined : "3 3"}
+            markerEnd={isRef ? "url(#graph-ref-arrow)" : undefined}
           />
         );
       })}
@@ -431,6 +461,34 @@ export function Graph() {
         >
           Nenhum documento para visualizar ainda.
         </text>
+      )}
+      {nodes.length > 0 && (
+        <g transform={`translate(14, ${dims.h - 34})`} className="pointer-events-none">
+          <line
+            x1={0}
+            y1={0}
+            x2={22}
+            y2={0}
+            stroke={refColor}
+            strokeWidth={1.75}
+            markerEnd="url(#graph-ref-arrow)"
+          />
+          <text x={30} y={4} className="fill-muted-foreground text-[11px]">
+            referência
+          </text>
+          <line
+            x1={0}
+            y1={17}
+            x2={22}
+            y2={17}
+            stroke={containColor}
+            strokeWidth={1}
+            strokeDasharray="3 3"
+          />
+          <text x={30} y={21} className="fill-muted-foreground text-[11px]">
+            contido em
+          </text>
+        </g>
       )}
     </svg>
   );
