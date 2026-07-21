@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
@@ -7,14 +8,32 @@ import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { isGatewayMode } from "@/lib/data/dataSource";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import type { SharedDocument } from "@/lib/types";
 
 export function SharedDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const doc = useDb((s) => s.shared_documents.find((d) => d.id === docId));
+  const mockDoc = useDb((s) => s.shared_documents.find((d) => d.id === docId));
+
+  // Same gateway-mode gap as Editor.tsx / WorkspaceDoc.tsx.
+  const [gatewayDoc, setGatewayDoc] = useState<SharedDocument | undefined>(undefined);
+  useEffect(() => {
+    if (!isGatewayMode()) return;
+    let cancelled = false;
+    setGatewayDoc(undefined);
+    sharedDocumentsRepo.list().then((docs) => {
+      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === docId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId]);
+
+  const doc = isGatewayMode() ? gatewayDoc : mockDoc;
   const publishedBy = useDb((s) => (doc ? s.users.find((u) => u.id === doc.published_by) : null));
   const sourceDoc = useDb((s) =>
     doc?.source_document_id ? s.documents.find((d) => d.id === doc.source_document_id) : null,

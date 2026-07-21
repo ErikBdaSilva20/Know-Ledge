@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { isGatewayMode } from "@/lib/data/dataSource";
 import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";
 import { handleDomainError } from "@/lib/handleError";
-import type { Scope } from "@/lib/types";
+import type { Document, Scope, SharedDocument } from "@/lib/types";
 import { Code2, Eye, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
@@ -47,9 +48,29 @@ function PaneToggle({ active, disabled, onClick, icon, label, title }: PaneToggl
 }
 
 export function Editor({ scope, id, readOnly }: Props) {
-  const personal = useDb((s) => s.documents.find((d) => d.id === id));
-  const shared = useDb((s) => s.shared_documents.find((s) => s.id === id));
-  const doc = scope === "personal" ? personal : shared;
+  const mockPersonal = useDb((s) => s.documents.find((d) => d.id === id));
+  const mockShared = useDb((s) => s.shared_documents.find((s) => s.id === id));
+
+  // useDb only ever reflects the local mock store — in gateway mode it's never
+  // repopulated from the backend, so `doc` was always undefined and every
+  // document (even one just created successfully) rendered as "not found".
+  // Fetch straight from the repo instead, mirroring Explorer.tsx's fix.
+  const [gatewayDoc, setGatewayDoc] = useState<Document | SharedDocument | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isGatewayMode()) return;
+    let cancelled = false;
+    setGatewayDoc(undefined);
+    const repo = scope === "personal" ? documentsRepo : sharedDocumentsRepo;
+    repo.list().then((docs) => {
+      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, id]);
+
+  const doc = isGatewayMode() ? gatewayDoc : scope === "personal" ? mockPersonal : mockShared;
 
   const [title, setTitle] = useState(doc?.title ?? "");
   const [content, setContent] = useState(doc?.content ?? "");

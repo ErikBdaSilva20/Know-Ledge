@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
@@ -8,16 +9,36 @@ import { Star, Upload, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
+import { isGatewayMode } from "@/lib/data/dataSource";
 import { syncSharedRefs } from "@/lib/syncRefs";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
 import { toast } from "sonner";
+import type { Document } from "@/lib/types";
 
 export function WorkspaceDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const doc = useDb((s) => s.documents.find((d) => d.id === docId));
+  const mockDoc = useDb((s) => s.documents.find((d) => d.id === docId));
+
+  // Same gateway-mode gap as Editor.tsx: useDb never repopulates from the
+  // backend, so this page's own `doc` (used for the owner check, the delete
+  // confirm title, and the "publish" payload) was always undefined too.
+  const [gatewayDoc, setGatewayDoc] = useState<Document | undefined>(undefined);
+  useEffect(() => {
+    if (!isGatewayMode()) return;
+    let cancelled = false;
+    setGatewayDoc(undefined);
+    documentsRepo.list().then((docs) => {
+      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === docId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId]);
+
+  const doc = isGatewayMode() ? gatewayDoc : mockDoc;
   const owner = useDb((s) => (doc ? s.users.find((u) => u.id === doc.owner_id) : null));
   const favorite = useDb((s) =>
     s.favorites.find(

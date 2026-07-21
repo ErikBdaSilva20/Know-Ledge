@@ -4,7 +4,7 @@ baseline_commit: 6de259e96aa22e09d3e6abdf7c005d4f5eebf364
 
 # Story 1.6: Costura mock → gateway (a troca sem redesenhar telas)
 
-Status: done
+Status: in-progress
 
 ## Story
 
@@ -32,6 +32,10 @@ so that **a promessa do brief se cumpra: "só trocar a implementação dos repos
 - [x] Task 4: Substituir auth mock por Better-Auth (`auth.me`, signIn/up/out) (AC: #4)
 - [x] Task 5: Definir a flag `VITE_DATA_SOURCE` e como o E7 a usa (AC: #5)
 - [x] Task 6: Checklist de regressão por tela (AC: #6)
+- [ ] Task 7: Reaberta a partir de `_bmad-output/AUDITORIA-DADOS-MOCKADOS-E-BUGS.md` (2026-07-21) — a checklist de regressão da Task 6 foi só estrutural (`tsc`/`build`/`lint`), sem passe manual em cada tela; a auditoria achou que o padrão `useDb` (mock) sem branch `isGatewayMode()` está espalhado pelas telas de leitura. AC#6 ("cada tela do brief funciona idêntica após a troca") só é satisfeito de fato quando os 3 subitens abaixo fecharem.
+  - [x] Subtask 7.1 (bloco 1/3 — achado crítico #1): `Editor.tsx` não abria nenhum documento em modo gateway (`doc` sempre `undefined` via mock). Corrigido em `Editor.tsx`, `workspace-doc.tsx`, `shared-doc.tsx` — busca via `documentsRepo`/`sharedDocumentsRepo`.list() quando `isGatewayMode()`. `tsc --noEmit` e `npm run build` limpos.
+  - [ ] Subtask 7.2 (bloco 2/3 — achado crítico #2): `syncRefs.ts` (`syncPersonalRefs`/`syncSharedRefs`) grava só no mock — `document_references`/`shared_document_references` nunca são escritas no gateway real. Bloqueia Backlinks/Grafo.
+  - [ ] Subtask 7.3 (bloco 3/3 — achado #3): telas de listagem (`dashboard`, `admin`, `favorites`, `recent`, `search`, `shared`, `shared-doc`, `workspace-doc`, `Graph`, `Backlinks`) leem `useDb` sem branch de gateway — sempre vazias/desatualizadas em modo gateway.
 
 ## Dev Notes
 
@@ -77,9 +81,20 @@ Claude Sonnet 5 (Amelia persona)
 - Checklist de regressão (AC#6): `npx tsc --noEmit` limpo, `npm run build` limpo, `npm run lint` sem erros (13 warnings pré-existentes, nenhum novo), `npm run dev` sobe e serve HTTP 200 sem erro de import — cobre a costura estrutural. **Não foi feito um passe manual clicando em cada tela no navegador** (sem ferramenta de automação de browser neste ambiente); recomendo um smoke test manual antes de dar a Epic 1 por 100% verificada em produção.
 - **Gap encontrado, não fechado nesta story:** `knowledge/src/lib/syncRefs.ts` (auto-referências a partir de `[[wikilinks]]`) ainda escreve direto no `mockDb`, sem passar pelos repos de referência — funciona hoje (modo mock), mas quando `VITE_DATA_SOURCE=gateway` ligar de verdade, `syncPersonalRefs`/`syncSharedRefs` não vão persistir no Neon. Precisa ser portado pra usar `documentReferencesRepo`/`sharedDocumentReferencesRepo` antes do Epic 3. Sinalizado ao usuário, não corrigido aqui por envolver mudança de sync→async com risco de timing na UI de backlinks (fora do escopo desta story sem validação).
 
+### 2026-07-21 — Reabertura (Task 7, bloco 1/3)
+
+- Confirmado em runtime: `Editor.tsx` caía sempre em "Documento não encontrado" em modo gateway, mesmo para documento recém-criado (confirmado no log do gateway com `201`). Causa raiz: `doc` vinha só de `useDb`/`mockDb`, nunca do gateway.
+- Corrigido com o mesmo padrão do `Explorer.tsx` (Story 1.6 original): estado local + `useEffect` que busca via `documentsRepo.list()`/`sharedDocumentsRepo.list()` (list-then-find, sem get-by-id — Importantdoc.md §B5) quando `isGatewayMode()`. Aplicado em `Editor.tsx` e também em `workspace-doc.tsx`/`shared-doc.tsx`, que tinham o mesmo bug na leitura do `doc` raiz da página (usado pra checar dono, montar o título do diálogo de exclusão e montar o payload de "Publicar").
+- **Não corrigido neste bloco (fora do escopo do achado #1, decisão consciente):** `owner`/`publishedBy`/`sourceDoc` em `workspace-doc.tsx`/`shared-doc.tsx` e as listas `allPersonal`/`allShared` do autocomplete em `Editor.tsx` continuam lendo do mock — fazem parte do achado #3 (telas de listagem) e do gap conhecido de "sem endpoint de usuários", tratados nos próximos blocos.
+- **Edge case identificado, não resolvido:** `workspace-doc.tsx`/`shared-doc.tsx` buscam `doc` uma vez (on mount); se o usuário editar no `Editor` (autosave) e clicar "Publicar" sem a página recarregar, o payload publicado usa o `title`/`content` da busca inicial, não o mais recente. No mock isso nunca foi um problema (store reativo global). Corrigir exigiria levantar o estado do doc pra um nível compartilhado entre a página e o `Editor` — mudança maior, fora do escopo deste bloco; sinalizado para decisão antes do Epic 3 fechar de vez.
+- Verificado: `npx tsc --noEmit` limpo, `npm run build` limpo (mesmo warning pré-existente de chunk-size). Sem acesso a browser automation nesta sessão — não foi feito o clique manual ponta-a-ponta; ambiente local (`docker compose` + `dev:gateway`) está de pé em `localhost:8787`/`localhost:5174` para o Erik confirmar visualmente.
+
 ### File List
 
 - `knowledge/src/lib/data/dataSource.ts` (novo)
 - `knowledge/src/lib/data/*.repo.ts` (6 arquivos — branch mock/gateway, ver Story 1.5)
 - `knowledge/src/lib/session.tsx` (branch `isGatewayMode()` em `SessionProvider`)
 - `knowledge/.env.example` (novo — documenta `VITE_DATA_SOURCE`)
+- `knowledge/src/components/Editor.tsx` (2026-07-21, bloco 1/3 — busca `doc` via repo em modo gateway)
+- `knowledge/src/routes/workspace-doc.tsx` (2026-07-21, bloco 1/3 — idem)
+- `knowledge/src/routes/shared-doc.tsx` (2026-07-21, bloco 1/3 — idem)
