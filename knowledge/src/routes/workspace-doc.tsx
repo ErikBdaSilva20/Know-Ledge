@@ -110,7 +110,10 @@ export function WorkspaceDoc() {
                       source_document_id: doc.id,
                       published_by: user!.id,
                     });
-                    syncSharedRefs(s.id);
+                    // Best-effort: the shared doc itself already published
+                    // successfully above, so a ref-sync failure shouldn't
+                    // block the success toast — just surface it separately.
+                    syncSharedRefs(s.id).catch(handleDomainError);
                     toast.success("Publicado na Base Compartilhada");
                   } catch (err) {
                     handleDomainError(err, navigate);

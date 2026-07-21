@@ -34,7 +34,7 @@ so that **a promessa do brief se cumpra: "só trocar a implementação dos repos
 - [x] Task 6: Checklist de regressão por tela (AC: #6)
 - [ ] Task 7: Reaberta a partir de `_bmad-output/AUDITORIA-DADOS-MOCKADOS-E-BUGS.md` (2026-07-21) — a checklist de regressão da Task 6 foi só estrutural (`tsc`/`build`/`lint`), sem passe manual em cada tela; a auditoria achou que o padrão `useDb` (mock) sem branch `isGatewayMode()` está espalhado pelas telas de leitura. AC#6 ("cada tela do brief funciona idêntica após a troca") só é satisfeito de fato quando os 3 subitens abaixo fecharem.
   - [x] Subtask 7.1 (bloco 1/3 — achado crítico #1): `Editor.tsx` não abria nenhum documento em modo gateway (`doc` sempre `undefined` via mock). Corrigido em `Editor.tsx`, `workspace-doc.tsx`, `shared-doc.tsx` — busca via `documentsRepo`/`sharedDocumentsRepo`.list() quando `isGatewayMode()`. `tsc --noEmit` e `npm run build` limpos.
-  - [ ] Subtask 7.2 (bloco 2/3 — achado crítico #2): `syncRefs.ts` (`syncPersonalRefs`/`syncSharedRefs`) grava só no mock — `document_references`/`shared_document_references` nunca são escritas no gateway real. Bloqueia Backlinks/Grafo.
+  - [x] Subtask 7.2 (bloco 2/3 — achado crítico #2): `syncRefs.ts` (`syncPersonalRefs`/`syncSharedRefs`) grava só no mock — `document_references`/`shared_document_references` nunca eram escritas no gateway real. Corrigido: as duas funções (+ `syncAllRefsFor`) agora são `async` e, em modo gateway, buscam via repo e fazem *diff* do conjunto de arestas desejado contra o existente (create só do que falta, remove só do que sobrou) em vez do delete-all-then-recreate do mock. Ainda bloqueia Backlinks/Grafo até o bloco 3 (eles continuam lendo do mock).
   - [ ] Subtask 7.3 (bloco 3/3 — achado #3): telas de listagem (`dashboard`, `admin`, `favorites`, `recent`, `search`, `shared`, `shared-doc`, `workspace-doc`, `Graph`, `Backlinks`) leem `useDb` sem branch de gateway — sempre vazias/desatualizadas em modo gateway.
 
 ## Dev Notes
@@ -89,6 +89,16 @@ Claude Sonnet 5 (Amelia persona)
 - **Edge case identificado, não resolvido:** `workspace-doc.tsx`/`shared-doc.tsx` buscam `doc` uma vez (on mount); se o usuário editar no `Editor` (autosave) e clicar "Publicar" sem a página recarregar, o payload publicado usa o `title`/`content` da busca inicial, não o mais recente. No mock isso nunca foi um problema (store reativo global). Corrigir exigiria levantar o estado do doc pra um nível compartilhado entre a página e o `Editor` — mudança maior, fora do escopo deste bloco; sinalizado para decisão antes do Epic 3 fechar de vez.
 - Verificado: `npx tsc --noEmit` limpo, `npm run build` limpo (mesmo warning pré-existente de chunk-size). Sem acesso a browser automation nesta sessão — não foi feito o clique manual ponta-a-ponta; ambiente local (`docker compose` + `dev:gateway`) está de pé em `localhost:8787`/`localhost:5174` para o Erik confirmar visualmente.
 
+### 2026-07-21 — Reabertura (Task 7, bloco 2/3)
+
+- Causa raiz confirmada (achado crítico #2): `syncPersonalRefs`/`syncSharedRefs` chamavam `getState()`/`mutate()` do `mockDb` direto, sem branch de `isGatewayMode()` — os repos de referência (`documentReferencesRepo`, `sharedDocumentReferencesRepo`) já existiam com o branch certo desde a Story original, mas nunca eram chamados por ninguém.
+- `syncRefs.ts` reescrito: `syncPersonalRefs`/`syncSharedRefs`/`syncAllRefsFor` viraram `async` e despacham pro branch mock (comportamento idêntico ao anterior, extraído para `*Mock`) ou pro gateway (`*Gateway`, novo).
+- **Decisão de design (pensando em 6+ anos de uso, não só em fechar o achado):** o caminho mock pode se dar ao luxo de "apaga tudo e recria" (filter+push em memória, custo zero). Contra o gateway real isso viraria N chamadas HTTP de create + N de remove a cada save, mesmo quando nada mudou no conjunto de links. Em vez de portar esse padrão 1:1, o caminho gateway faz um **diff do conjunto de arestas** (link atual do conteúdo vs. refs já existentes pra aquele documento) e só chama `create`/`remove` no que realmente mudou — menos chamadas de rede, `created_at` de arestas não tocadas fica estável, e o padrão escala com o tamanho do doc, não com o número de saves.
+- Pontos de chamada (`Editor.tsx` após save, `workspace-doc.tsx` após publicar) viraram fire-and-forget com `.catch(handleDomainError)`: a sincronização de refs é secundária — se ela falhar, o save/publish principal (que já teve sucesso) não deve ser desfeito nem marcado como erro; só reporta o erro à parte.
+- RBAC conferido contra `dev/mock-gateway/src/tables.ts`/`schemas.ts`: `document_references` tem `owner_id` server-derived e `ownerVisibility: true` (rep sincroniza só as próprias refs, sem 403); `shared_document_references` tem `ownerVisibility: false` (escrita só manager/admin) — consistente com `permsFor()` em `session.tsx`, que só dá `publishShared` pra manager/admin. Nenhuma inconsistência de permissão nova introduzida.
+- Ainda não fecha Backlinks/Grafo (achado #7) — eles continuam lendo do mock; é o bloco 3.
+- Verificado: `npx tsc --noEmit` limpo, `npm run build` limpo, `npm run lint` sem erros novos (2 warnings pré-existentes de `react-hooks/exhaustive-deps` em `Editor.tsx`, nenhum novo). Sem browser automation nesta sessão.
+
 ### File List
 
 - `knowledge/src/lib/data/dataSource.ts` (novo)
@@ -98,3 +108,6 @@ Claude Sonnet 5 (Amelia persona)
 - `knowledge/src/components/Editor.tsx` (2026-07-21, bloco 1/3 — busca `doc` via repo em modo gateway)
 - `knowledge/src/routes/workspace-doc.tsx` (2026-07-21, bloco 1/3 — idem)
 - `knowledge/src/routes/shared-doc.tsx` (2026-07-21, bloco 1/3 — idem)
+- `knowledge/src/lib/syncRefs.ts` (2026-07-21, bloco 2/3 — branch gateway com diff create/remove, em vez de delete-all-then-recreate)
+- `knowledge/src/components/Editor.tsx` (2026-07-21, bloco 2/3 — `syncAllRefsFor(...).catch(handleDomainError)`)
+- `knowledge/src/routes/workspace-doc.tsx` (2026-07-21, bloco 2/3 — `syncSharedRefs(...).catch(handleDomainError)`)

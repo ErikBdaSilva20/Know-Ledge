@@ -111,7 +111,10 @@ export function Editor({ scope, id, readOnly }: Props) {
         scope === "personal"
           ? await documentsRepo.update(doc.id, { title, content }, opts)
           : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
-      syncAllRefsFor(scope, doc.id);
+      // Best-effort: the document itself already saved successfully above,
+      // so a ref-sync failure shouldn't flip `dirty` back on or block the
+      // save indicator — just surface it and move on.
+      syncAllRefsFor(scope, doc.id).catch(handleDomainError);
       setDirty(false);
       setSavedAt(new Date());
       setLastKnownUpdatedAt(saved.updated_at);
