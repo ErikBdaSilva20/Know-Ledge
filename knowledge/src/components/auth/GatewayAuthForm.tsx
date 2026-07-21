@@ -5,6 +5,7 @@ import { useSession } from "@/lib/session";
 import { auth } from "@/lib/data/client";
 import { DomainError } from "@/lib/data/errors";
 import { handleDomainError } from "@/lib/handleError";
+import { checkPassword, isValidEmail } from "@/lib/validation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -29,6 +30,17 @@ export function GatewayAuthForm({ mode }: Props) {
   const canSubmit = isSignUp ? !!(name && email && password) : !!(email && password);
 
   const submit = async () => {
+    if (isSignUp) {
+      if (!isValidEmail(email)) {
+        toast.error("Digite um e-mail válido.");
+        return;
+      }
+      const passwordCheck = checkPassword(password);
+      if (!passwordCheck.valid) {
+        toast.error(passwordCheck.message);
+        return;
+      }
+    }
     setSubmitting(true);
     try {
       if (isSignUp) {
@@ -78,7 +90,7 @@ export function GatewayAuthForm({ mode }: Props) {
         />
         <Input
           type="password"
-          placeholder="senha"
+          placeholder={isSignUp ? "senha (mín. 6 caracteres, 1 número, 1 especial)" : "senha"}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && canSubmit && submit()}
