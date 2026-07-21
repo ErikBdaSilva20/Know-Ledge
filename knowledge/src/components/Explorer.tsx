@@ -83,8 +83,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
     null,
   );
   const [renameValue, setRenameValue] = useState("");
-  // Track folders that were just created — commit with empty name deletes them
-  const [pendingNewFolders, setPendingNewFolders] = useState<Set<string>>(new Set());
+  // Track items (folders OR documents) just created inline — committing an
+  // empty name deletes them (nothing can be saved without a name).
+  const [pendingNewItems, setPendingNewItems] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
   // The last folder the user clicked in the tree — "Novo documento" in the
@@ -124,17 +125,27 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const toggle = (id: string) => setOpenFolders((s) => ({ ...s, [id]: !s[id] }));
 
+  // Create document inline: mirrors createFolder. The doc is created with a
+  // placeholder title and immediately enters rename mode (file icon, empty
+  // input). Committing an empty name deletes it; committing a name opens it
+  // in the editor (naming-then-editing is the point of a new document).
   const createDoc = async (ownerId: string, folderId: string | null) => {
     try {
       const d = await documentsRepo.create({
         owner_id: ownerId,
         folder_id: folderId,
-        title: "Sem título",
+        title: "Novo documento",
         content: "",
       });
       await refreshGatewayData();
       if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
-      navigate(`/workspace/${d.id}`);
+      setPendingNewItems((s) => {
+        const n = new Set(s);
+        n.add(d.id);
+        return n;
+      });
+      setRenaming({ kind: "document", id: d.id });
+      setRenameValue("");
     } catch (err) {
       handleDomainError(err, navigate);
     }
@@ -152,7 +163,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       });
       await refreshGatewayData();
       if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
-      setPendingNewFolders((s) => {
+      setPendingNewItems((s) => {
         const n = new Set(s);
         n.add(f.id);
         return n;
@@ -171,39 +182,44 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const commitRename = async () => {
     if (!renaming) return;
+    const { kind, id } = renaming;
     const v = renameValue.trim();
-    const isPendingNew = renaming.kind === "folder" && pendingNewFolders.has(renaming.id);
+    const isPendingNew = pendingNewItems.has(id);
 
     try {
       if (!v) {
-        // Empty name: for a brand-new folder, delete it (can't save without a name).
+        // Empty name on a brand-new item: delete it (can't save without a name).
         if (isPendingNew) {
-          await foldersRepo.remove(renaming.id);
+          if (kind === "folder") await foldersRepo.remove(id);
+          else await documentsRepo.remove(id);
           await refreshGatewayData();
-          setPendingNewFolders((s) => {
+          setPendingNewItems((s) => {
             const n = new Set(s);
-            n.delete(renaming.id);
+            n.delete(id);
             return n;
           });
-          setLastClickedFolderId((cur) => (cur === renaming.id ? null : cur));
+          if (kind === "folder") setLastClickedFolderId((cur) => (cur === id ? null : cur));
         }
         // For an existing item, empty name is just a no-op cancel.
         setRenaming(null);
         return;
       }
 
-      if (renaming.kind === "folder") await foldersRepo.update(renaming.id, { name: v });
-      else await documentsRepo.update(renaming.id, { title: v });
+      if (kind === "folder") await foldersRepo.update(id, { name: v });
+      else await documentsRepo.update(id, { title: v });
       await refreshGatewayData();
 
       if (isPendingNew) {
-        setPendingNewFolders((s) => {
+        setPendingNewItems((s) => {
           const n = new Set(s);
-          n.delete(renaming.id);
+          n.delete(id);
           return n;
         });
       }
       setRenaming(null);
+
+      // A freshly-named document opens in the editor — folders just stay put.
+      if (isPendingNew && kind === "document") navigate(`/workspace/${id}`);
     } catch (err) {
       handleDomainError(err, navigate);
     }
@@ -211,17 +227,19 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const cancelRename = async () => {
     if (!renaming) return;
+    const { kind, id } = renaming;
     try {
-      // Cancelling a brand-new folder without a name → delete it.
-      if (renaming.kind === "folder" && pendingNewFolders.has(renaming.id) && !renameValue.trim()) {
-        await foldersRepo.remove(renaming.id);
+      // Cancelling a brand-new item without a name → delete it.
+      if (pendingNewItems.has(id) && !renameValue.trim()) {
+        if (kind === "folder") await foldersRepo.remove(id);
+        else await documentsRepo.remove(id);
         await refreshGatewayData();
-        setPendingNewFolders((s) => {
+        setPendingNewItems((s) => {
           const n = new Set(s);
-          n.delete(renaming.id);
+          n.delete(id);
           return n;
         });
-        setLastClickedFolderId((cur) => (cur === renaming.id ? null : cur));
+        if (kind === "folder") setLastClickedFolderId((cur) => (cur === id ? null : cur));
       }
       setRenaming(null);
     } catch (err) {
@@ -436,6 +454,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
           <input
             autoFocus
             value={renameValue}
+            placeholder="Nome do documento"
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => {
