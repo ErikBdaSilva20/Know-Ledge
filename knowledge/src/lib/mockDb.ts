@@ -32,9 +32,9 @@ function uid(prefix: string) {
 
 // Sample folders/documents/shared docs were emptied out once manual testing
 // moved to real accounts against the gateway (dev/mock-gateway/seed.ts's
-// Postgres seed is the one still in use for that). The 4 users stay — they're
-// what the sidebar's RoleSwitcher and the dev-preview link switch between to
-// eyeball the rep/manager/admin screens.
+// Postgres seed is the one still in use for that). The 4 users stay — other
+// screens (Explorer, shared docs, admin) still resolve owner/publisher names
+// against this list, and session.tsx's mock login resolves to "u_carla".
 function seed(): DbState {
   const users: User[] = [
     { id: "u_ana", name: "Ana Silva", email: "ana@empresa.com", role: "rep" },
@@ -98,13 +98,6 @@ export function mutate(fn: (draft: DbState) => void) {
 export function subscribe(fn: () => void) {
   listeners.add(fn);
   return () => listeners.delete(fn);
-}
-
-export function resetDb() {
-  window.localStorage.removeItem(STORAGE_KEY);
-  state = seed();
-  persist();
-  listeners.forEach((l) => l());
 }
 
 export const genId = uid;

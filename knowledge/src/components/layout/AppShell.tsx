@@ -1,13 +1,13 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   BookOpen,
   ChevronLeft,
   ChevronRight,
   Compass,
-  Eye,
   FolderTree,
   Home,
+  LogOut,
   Menu,
   Moon,
   Network,
@@ -17,11 +17,9 @@ import {
   Sun,
   Timer,
 } from "lucide-react";
-import { RoleSwitcher } from "./RoleSwitcher";
 import { useSession } from "@/lib/session";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
-import { isDevPreviewActive, setDevPreviewActive } from "@/lib/data/dataSource";
 import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 
@@ -54,8 +52,9 @@ function SidebarInner({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { can } = useSession();
+  const { user, can, logout } = useSession();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   return (
     <div className="flex h-full flex-col">
       <div
@@ -117,7 +116,28 @@ function SidebarInner({
             <Compass className="h-4 w-4" />
           </div>
         ) : (
-          <RoleSwitcher />
+          <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+              {user ? user.name.slice(0, 1) : "?"}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-xs font-medium">{user?.name ?? "Sem usuário"}</span>
+              <span className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                {user?.role ?? "—"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                navigate("/login");
+              }}
+              title="Sair"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </div>
     </div>
@@ -125,7 +145,7 @@ function SidebarInner({
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const { user, setUserId } = useSession();
+  const { user } = useSession();
   const { theme, toggle } = useTheme();
   const { pathname } = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -195,21 +215,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               "Sem sessão"
             )}
           </div>
-          {isDevPreviewActive() && (
-            <button
-              type="button"
-              onClick={() => {
-                setDevPreviewActive(false);
-                setUserId(null);
-                window.location.href = "/login";
-              }}
-              title="Sair do preview mockado e voltar ao gateway real"
-              className="flex items-center gap-1.5 rounded-full border border-amber-500/40 bg-amber-500/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-wider text-amber-600 transition-colors hover:bg-amber-500/20 dark:text-amber-400"
-            >
-              <Eye className="h-3 w-3" />
-              Preview mock · voltar ao gateway
-            </button>
-          )}
           <Button
             variant="ghost"
             size="icon"
