@@ -87,6 +87,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const [pendingNewFolders, setPendingNewFolders] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
+  // The last folder the user clicked in the tree — "Novo documento" in the
+  // toolbar above drops the new doc there instead of always at root, so
+  // opening a folder and hitting the top button behaves like "new doc here".
+  const [lastClickedFolderId, setLastClickedFolderId] = useState<string | null>(null);
 
   const seeAll = can("seeAllDocs");
   const visibleFolders = useMemo(
@@ -181,6 +185,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
             n.delete(renaming.id);
             return n;
           });
+          setLastClickedFolderId((cur) => (cur === renaming.id ? null : cur));
         }
         // For an existing item, empty name is just a no-op cancel.
         setRenaming(null);
@@ -216,6 +221,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
           n.delete(renaming.id);
           return n;
         });
+        setLastClickedFolderId((cur) => (cur === renaming.id ? null : cur));
       }
       setRenaming(null);
     } catch (err) {
@@ -224,46 +230,79 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   };
 
   const canDragFolder = (f: Folder) => !!user && f.owner_id === user.id;
+  const canDragDoc = (d: Document) => !!user && d.owner_id === user.id;
   const canDropOnTarget = (targetOwnerId: string) => !!user && targetOwnerId === user.id;
 
   const handleDropOnFolder = async (
     e: React.DragEvent,
     targetFolder: Folder,
     allFolders: Folder[],
+    allDocs: Document[],
   ) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverId(null);
-    const draggedId = e.dataTransfer.getData("application/x-folder-id");
-    if (!draggedId || !user) return;
-    const dragged = allFolders.find((f) => f.id === draggedId);
-    if (!dragged || dragged.owner_id !== user.id) return;
-    if (!canDropOnTarget(targetFolder.owner_id)) return;
-    if (isDescendant(allFolders, targetFolder.id, dragged.id)) return;
-    if (dragged.parent_id === targetFolder.id) return;
-    try {
-      await foldersRepo.update(draggedId, { parent_id: targetFolder.id });
-      await refreshGatewayData();
-      setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
-    } catch (err) {
-      handleDomainError(err, navigate);
+    if (!user || !canDropOnTarget(targetFolder.owner_id)) return;
+
+    const draggedFolderId = e.dataTransfer.getData("application/x-folder-id");
+    if (draggedFolderId) {
+      const dragged = allFolders.find((f) => f.id === draggedFolderId);
+      if (!dragged || dragged.owner_id !== user.id) return;
+      if (isDescendant(allFolders, targetFolder.id, dragged.id)) return;
+      if (dragged.parent_id === targetFolder.id) return;
+      try {
+        await foldersRepo.update(draggedFolderId, { parent_id: targetFolder.id });
+        await refreshGatewayData();
+        setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+      return;
+    }
+
+    const draggedDocId = e.dataTransfer.getData("application/x-document-id");
+    if (draggedDocId) {
+      const dragged = allDocs.find((d) => d.id === draggedDocId);
+      if (!dragged || dragged.owner_id !== user.id) return;
+      if (dragged.folder_id === targetFolder.id) return;
+      try {
+        await documentsRepo.update(draggedDocId, { folder_id: targetFolder.id });
+        await refreshGatewayData();
+        setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
     }
   };
 
   const handleDropOnRoot = async (e: React.DragEvent, ownerId: string) => {
     e.preventDefault();
     setRootDragOver(false);
-    const draggedId = e.dataTransfer.getData("application/x-folder-id");
-    if (!draggedId || !user) return;
-    if (ownerId !== user.id) return;
-    const dragged = folders.find((f) => f.id === draggedId);
-    if (!dragged || dragged.owner_id !== user.id) return;
-    if (dragged.parent_id === null) return;
-    try {
-      await foldersRepo.update(draggedId, { parent_id: null });
-      await refreshGatewayData();
-    } catch (err) {
-      handleDomainError(err, navigate);
+    if (!user || ownerId !== user.id) return;
+
+    const draggedFolderId = e.dataTransfer.getData("application/x-folder-id");
+    if (draggedFolderId) {
+      const dragged = folders.find((f) => f.id === draggedFolderId);
+      if (!dragged || dragged.owner_id !== user.id || dragged.parent_id === null) return;
+      try {
+        await foldersRepo.update(draggedFolderId, { parent_id: null });
+        await refreshGatewayData();
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+      return;
+    }
+
+    const draggedDocId = e.dataTransfer.getData("application/x-document-id");
+    if (draggedDocId) {
+      const dragged = documents.find((d) => d.id === draggedDocId);
+      if (!dragged || dragged.owner_id !== user.id || dragged.folder_id === null) return;
+      try {
+        await documentsRepo.update(draggedDocId, { folder_id: null });
+        await refreshGatewayData();
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
     }
   };
 
@@ -285,12 +324,17 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => !isRenaming && toggle(folder.id)}
+          onClick={() => {
+            if (isRenaming) return;
+            toggle(folder.id);
+            setLastClickedFolderId(folder.id);
+          }}
           onKeyDown={(e) => {
             if (isRenaming) return;
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               toggle(folder.id);
+              setLastClickedFolderId(folder.id);
             }
           }}
           draggable={draggable && !isRenaming}
@@ -310,7 +354,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
             e.stopPropagation();
             if (dragOverId === folder.id) setDragOverId(null);
           }}
-          onDrop={(e) => handleDropOnFolder(e, folder, allFolders)}
+          onDrop={(e) => handleDropOnFolder(e, folder, allFolders, allDocs)}
           className={cn(
             "group flex cursor-pointer select-none items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent",
             isDragOver && "bg-accent ring-1 ring-primary",
@@ -347,7 +391,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               onDelete={() =>
                 foldersRepo
                   .remove(folder.id)
-                  .then(refreshGatewayData)
+                  .then(() => {
+                    setLastClickedFolderId((cur) => (cur === folder.id ? null : cur));
+                    return refreshGatewayData();
+                  })
                   .catch((err) => handleDomainError(err, navigate))
               }
               itemName={folder.name}
@@ -368,9 +415,16 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const renderDoc = (doc: Document, depth: number) => {
     const isRenaming = renaming?.kind === "document" && renaming.id === doc.id;
     const isActive = doc.id === activeDocId;
+    const draggable = canDragDoc(doc);
     return (
       <div
         key={doc.id}
+        draggable={draggable && !isRenaming}
+        onDragStart={(e) => {
+          if (!draggable) return;
+          e.dataTransfer.setData("application/x-document-id", doc.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
         className={cn(
           "group flex items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent",
           isActive && "bg-accent font-medium",
@@ -431,8 +485,19 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
             variant="ghost"
             size="icon"
             className="h-6 w-6"
-            title="Novo documento na raiz"
-            onClick={() => user && createDoc(user.id, null)}
+            title={
+              lastClickedFolderId ? "Novo documento na pasta selecionada" : "Novo documento na raiz"
+            }
+            onClick={() => {
+              if (!user) return;
+              // Guard against a stale reference to a folder that's since
+              // been deleted or moved out of view — fall back to root.
+              const targetFolderId =
+                lastClickedFolderId && folders.some((f) => f.id === lastClickedFolderId)
+                  ? lastClickedFolderId
+                  : null;
+              createDoc(user.id, targetFolderId);
+            }}
           >
             <FilePlus className="h-3.5 w-3.5" />
           </Button>
