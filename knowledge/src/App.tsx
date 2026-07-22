@@ -77,17 +77,29 @@ const PUBLIC_PATHS = new Set(["/login", "/signup"]);
 
 /** Redirects unauthenticated users to /login, and authenticated users away from /login or /signup. */
 function RequireAuth() {
-  const { user } = useSession();
+  const { user, sessionLoading } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Hold every redirect until the gateway session probe settles — otherwise
+    // a refresh on any protected route flashes /login before auth.me() has
+    // even answered (user is momentarily null), then bounces back.
+    if (sessionLoading) return;
     if (!user && !PUBLIC_PATHS.has(location.pathname)) {
       navigate("/login", { replace: true });
     } else if (user && (PUBLIC_PATHS.has(location.pathname) || location.pathname === "/")) {
       navigate("/dashboard", { replace: true });
     }
-  }, [user, location.pathname, navigate]);
+  }, [user, sessionLoading, location.pathname, navigate]);
+
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <span className="text-sm text-muted-foreground">Carregando…</span>
+      </div>
+    );
+  }
 
   return <Outlet />;
 }
