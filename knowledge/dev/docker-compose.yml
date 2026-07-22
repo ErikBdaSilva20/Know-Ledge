@@ -27,7 +27,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgres://KnowLedge:dev@postgres:5432/knowdb
+      DATABASE_URL: postgres://KnowLedge:dev123@postgres:5432/knowdb
       TENANT_ID: local-dev
       DEV_ORIGIN: http://localhost:5173
       PORT: 8787
