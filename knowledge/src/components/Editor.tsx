@@ -271,7 +271,10 @@ export function Editor({ scope, id, readOnly }: Props) {
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
+      {/* Own row for the title below sm: (a ~360px phone doesn't have room to
+          share a row with save state + the pane toggle without wrapping
+          unpredictably); back to one row, vertically centered, at sm:+. */}
+      <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <input
           value={title}
           disabled={isReadOnly}
@@ -279,10 +282,10 @@ export function Editor({ scope, id, readOnly }: Props) {
             setTitle(e.target.value);
             setDirty(true);
           }}
-          className="min-w-0 flex-1 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground sm:text-2xl"
+          className="min-w-0 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground sm:flex-1 sm:text-2xl"
           placeholder="Sem título"
         />
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
           {dirty ? (
             <span className="flex items-center gap-1">
               <Save className="h-3 w-3 animate-pulse" /> Salvando…
@@ -299,6 +302,7 @@ export function Editor({ scope, id, readOnly }: Props) {
               onClick={handleManualSave}
               disabled={!dirty || saving}
               title="Salvar agora"
+              className="min-h-11 min-w-11 md:min-h-0 md:min-w-0"
             >
               <Save className="h-3.5 w-3.5 sm:mr-1" />
               <span className="hidden sm:inline">Salvar</span>
