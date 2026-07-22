@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
@@ -7,10 +7,15 @@ import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";
 import { handleDomainError } from "@/lib/handleError";
+import { useMediaQuery } from "@/lib/useMediaQuery";
 import type { Document, Scope, SharedDocument } from "@/lib/types";
 import { Code2, Eye, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+
+// Tailwind's `md` breakpoint (see tailwind config) — the same line where the
+// pane grid below switches from stacked to side-by-side.
+const DESKTOP_QUERY = "(min-width: 768px)";
 
 interface Props {
   scope: Scope;
@@ -31,23 +36,30 @@ interface PaneToggleProps {
 
 /**
  * Reusable pane visibility toggle (raw markdown / formatted preview).
- * `disabled` prevents hiding the last remaining pane.
+ * `disabled` prevents hiding the last remaining pane. Hit area is padded to
+ * the 44px touch-target floor below `md:`, where this is the only way to
+ * reach the other pane (see EXPERIENCE.md § Component Patterns).
  */
-function PaneToggle({ active, disabled, onClick, icon, label, title }: PaneToggleProps) {
+const PaneToggle = forwardRef<HTMLButtonElement, PaneToggleProps>(function PaneToggle(
+  { active, disabled, onClick, icon, label, title },
+  ref,
+) {
   return (
     <Button
+      ref={ref}
       variant={active ? "secondary" : "ghost"}
       size="sm"
       onClick={onClick}
       disabled={disabled}
       title={title}
       aria-pressed={active}
+      className="min-h-11 min-w-11 md:min-h-0 md:min-w-0"
     >
       <span className="sm:mr-1">{icon}</span>
       <span className="hidden sm:inline">{label}</span>
     </Button>
   );
-}
+});
 
 export function Editor({ scope, id, readOnly }: Props) {
   const mockPersonal = useDb((s) => s.documents.find((d) => d.id === id));
@@ -88,12 +100,25 @@ export function Editor({ scope, id, readOnly }: Props) {
   const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<string | undefined>(doc?.updated_at);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
   const [saving, setSaving] = useState(false);
-  const [showRaw, setShowRaw] = useState(true);
+  // Below md:, exactly one pane is ever shown (default Preview — the point is
+  // reading, not the source) and the two toggles become mutually exclusive.
+  // At md: and above, both start visible and toggle independently, unchanged
+  // from before. See EXPERIENCE.md § Component Patterns / Responsive & Platform.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [showRaw, setShowRaw] = useState(isDesktop);
   const [showPreview, setShowPreview] = useState(true);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autoQuery, setAutoQuery] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paneContentRef = useRef<HTMLDivElement>(null);
+  const rawToggleRef = useRef<HTMLButtonElement>(null);
+  const previewToggleRef = useRef<HTMLButtonElement>(null);
+  // Set right before a pane swap if focus was inside the pane about to be
+  // hidden — consumed by the effect below once the swap has committed, so
+  // focus lands on the now-visible pane's toggle instead of dropping to
+  // <body> when React unmounts the subtree that held it.
+  const restoreFocusRef = useRef(false);
 
   const allPersonal = useDb((s) => s.documents);
   const allShared = useDb((s) => s.shared_documents);
@@ -165,7 +190,47 @@ export function Editor({ scope, id, readOnly }: Props) {
     return all.filter((x) => x.title.toLowerCase().includes(q)).slice(0, 8);
   }, [showAutocomplete, autoQuery, allShared, allPersonal]);
 
+  // Below md:, picking a pane hides the other one outright (radio-like); at
+  // md: and up, the two toggle independently as before. Either way, if focus
+  // was inside the pane about to disappear, restoreFocusRef flags the effect
+  // below to move it to the newly-shown pane's toggle once React commits the
+  // swap, instead of letting it drop to <body>.
+  const selectPane = (pane: "raw" | "preview") => {
+    if (paneContentRef.current?.contains(document.activeElement)) {
+      restoreFocusRef.current = true;
+    }
+    if (!isDesktop) {
+      setShowRaw(pane === "raw");
+      setShowPreview(pane === "preview");
+      return;
+    }
+    if (pane === "raw") setShowRaw((v) => !v);
+    else setShowPreview((v) => !v);
+  };
+
+  useEffect(() => {
+    if (!restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    (showRaw ? rawToggleRef : previewToggleRef).current?.focus();
+  }, [showRaw, showPreview]);
+
+  // selectPane only enforces exclusivity at click time — an editor already
+  // open with both panes shown (the desktop default) doesn't get that
+  // treatment just by the window crossing below md:, e.g. a browser resize.
+  // Without this, the original bug (both panes stacked, unbounded raw pane
+  // on top) comes back through resize instead of through fresh load.
+  useEffect(() => {
+    if (!isDesktop && showRaw && showPreview) {
+      setShowRaw(false);
+      setShowPreview(true);
+    }
+  }, [isDesktop, showRaw, showPreview]);
+
   if (!doc) return <div className="p-10 text-muted-foreground">Documento não encontrado.</div>;
+
+  // Guard: never hide the last remaining pane (desktop only — below md: the
+  // two panes are mutually exclusive by construction, see selectPane above).
+  const bothVisible = showRaw && showPreview;
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
@@ -204,9 +269,6 @@ export function Editor({ scope, id, readOnly }: Props) {
     }, 0);
   };
 
-  // Guard: never hide the last remaining pane.
-  const bothVisible = showRaw && showPreview;
-
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
@@ -244,27 +306,36 @@ export function Editor({ scope, id, readOnly }: Props) {
           )}
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             <PaneToggle
+              ref={rawToggleRef}
               active={showRaw}
-              disabled={showRaw && !showPreview}
-              onClick={() => setShowRaw((v) => !v)}
+              disabled={isDesktop && showRaw && !showPreview}
+              onClick={() => selectPane("raw")}
               icon={<Code2 className="h-3.5 w-3.5" />}
               label="Markdown"
               title={showRaw ? "Ocultar markdown" : "Mostrar markdown"}
             />
             <PaneToggle
+              ref={previewToggleRef}
               active={showPreview}
-              disabled={showPreview && !showRaw}
-              onClick={() => setShowPreview((v) => !v)}
+              disabled={isDesktop && showPreview && !showRaw}
+              onClick={() => selectPane("preview")}
               icon={<Eye className="h-3.5 w-3.5" />}
               label="Preview"
               title={showPreview ? "Ocultar preview" : "Mostrar preview"}
             />
           </div>
+          {/* Screen-reader-only: sighted users can already see which pane is
+              showing, but a screen-reader user whose focus stayed in the
+              content (not on the toggle) needs the swap announced. */}
+          <span role="status" aria-live="polite" className="sr-only">
+            {!isDesktop && (showRaw ? "Mostrando: Markdown" : "Mostrando: Preview")}
+          </span>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
+          ref={paneContentRef}
           className={cn(
             "grid min-h-full",
             bothVisible ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1",
@@ -278,12 +349,17 @@ export function Editor({ scope, id, readOnly }: Props) {
                 onChange={handleContentChange}
                 onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
                 placeholder="Escreva em Markdown… use [[ para linkar outros documentos"
+                aria-label="Markdown bruto"
                 rows={1}
                 ref={(el) => {
                   textareaRef.current = el;
                   if (el) {
                     el.style.height = "auto";
-                    const parentH = el.parentElement?.clientHeight ?? 0;
+                    // The height floor only exists to keep this pane visually
+                    // level with Preview when they sit side-by-side; alone
+                    // (mobile, single pane) it would just force an oversized
+                    // box on short documents, so it only applies at md:+.
+                    const parentH = isDesktop ? (el.parentElement?.clientHeight ?? 0) : 0;
                     el.style.height = `${Math.max(el.scrollHeight, parentH)}px`;
                   }
                 }}
