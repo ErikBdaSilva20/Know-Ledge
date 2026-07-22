@@ -25,6 +25,7 @@ export const sharedDocumentsRepo = {
       content: data.content,
       source_document_id: data.source_document_id,
       published_by: data.published_by,
+      published_by_name: data.published_by_name ?? null,
       created_at: isoNow(),
       updated_at: isoNow(),
     };
@@ -48,12 +49,14 @@ export const sharedDocumentsRepo = {
   async publish(
     source: Pick<Document, "id" | "title" | "content">,
     publishedBy: string,
+    publishedByName?: string,
   ): Promise<SharedDocument> {
     return sharedDocumentsRepo.create({
       title: source.title,
       content: source.content,
       source_document_id: source.id,
       published_by: publishedBy,
+      published_by_name: publishedByName,
     });
   },
   // Story 6.11 AC#1 — see documents.repo.ts's update() for why `opts` exists.

@@ -36,8 +36,6 @@ export function SharedDoc() {
   }, [docId]);
 
   const doc = isGatewayMode() ? gatewayDoc : mockDoc;
-  // No gateway endpoint lists users yet (known gap) — stays mock-only.
-  const publishedBy = useDb((s) => (doc ? s.users.find((u) => u.id === doc.published_by) : null));
   const mockDocuments = useDb((s) => s.documents);
   const { data: allDocuments } = useGatewayList(mockDocuments, documentsRepo.list);
   const sourceDoc = doc?.source_document_id
@@ -76,7 +74,7 @@ export function SharedDoc() {
         </Link>
         <span className="truncate">
           Publicado por{" "}
-          <span className="font-medium text-foreground">{publishedBy?.name ?? "—"}</span>
+          <span className="font-medium text-foreground">{doc.published_by_name ?? "—"}</span>
         </span>
         {sourceDoc && (
           <span className="truncate text-muted-foreground/70">

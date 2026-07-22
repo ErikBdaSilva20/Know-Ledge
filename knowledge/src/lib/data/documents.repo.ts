@@ -26,6 +26,7 @@ export const documentsRepo = {
       folder_id: data.folder_id,
       title: data.title,
       content: data.content ?? "",
+      owner_name: data.owner_name ?? null,
       created_at: isoNow(),
       updated_at: isoNow(),
     };

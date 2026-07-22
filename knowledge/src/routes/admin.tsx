@@ -129,7 +129,7 @@ export function AdminPage() {
                     {d.title}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    {userMap.get(d.owner_id)?.name}
+                    {d.owner_name ?? userMap.get(d.owner_id)?.name}
                   </span>
                   <ConfirmDialog
                     title={`Excluir "${d.title}"?`}
@@ -163,12 +163,26 @@ export function AdminPage() {
             {vaultGroups.map((g) => (
               <Card key={g.ownerId}>
                 <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
-                  <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
-                    {(userMap.get(g.ownerId)?.name ?? "—").slice(0, 1)}
-                  </div>
-                  <span className="text-sm font-medium">
-                    {userMap.get(g.ownerId)?.name ?? "Dono desconhecido"}
-                  </span>
+                  {(() => {
+                    // Prefer the real roster (usersRepo) when it resolved;
+                    // otherwise fall back to the owner_name snapshot stamped
+                    // on any of this owner's own items — see Explorer.tsx's
+                    // `ownerName` for why that field exists.
+                    const resolvedName =
+                      userMap.get(g.ownerId)?.name ??
+                      g.docs[0]?.owner_name ??
+                      g.folders[0]?.owner_name;
+                    return (
+                      <>
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                          {(resolvedName ?? "—").slice(0, 1)}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {resolvedName ?? "Dono desconhecido"}
+                        </span>
+                      </>
+                    );
+                  })()}
                   <span className="text-xs text-muted-foreground">
                     {g.folders.length} pastas · {g.docs.length} docs
                   </span>
@@ -219,7 +233,7 @@ export function AdminPage() {
                     {s.title}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    Por {userMap.get(s.published_by)?.name}
+                    Por {s.published_by_name ?? userMap.get(s.published_by)?.name}
                   </span>
                   <ConfirmDialog
                     title={`Remover "${s.title}"?`}

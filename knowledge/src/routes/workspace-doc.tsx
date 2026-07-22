@@ -38,8 +38,6 @@ export function WorkspaceDoc() {
   }, [docId]);
 
   const doc = isGatewayMode() ? gatewayDoc : mockDoc;
-  // No gateway endpoint lists users yet (known gap) — stays mock-only.
-  const owner = useDb((s) => (doc ? s.users.find((u) => u.id === doc.owner_id) : null));
   const mockFavorites = useDb((s) => s.favorites);
   const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
     mockFavorites,
@@ -73,9 +71,9 @@ export function WorkspaceDoc() {
           >
             ← Explorer
           </Link>
-          {owner && (
+          {doc.owner_name && (
             <span className="truncate">
-              Dono: <span className="font-medium text-foreground">{owner.name}</span>
+              Dono: <span className="font-medium text-foreground">{doc.owner_name}</span>
             </span>
           )}
           <span className="flex flex-wrap items-center gap-1 sm:ml-auto">

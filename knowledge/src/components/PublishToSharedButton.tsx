@@ -35,7 +35,7 @@ export function PublishToSharedButton({ doc, onPublished, compact, className }: 
     if (!user || publishing) return;
     setPublishing(true);
     try {
-      const shared = await sharedDocumentsRepo.publish(doc, user.id);
+      const shared = await sharedDocumentsRepo.publish(doc, user.id, user.name);
       // Best-effort: the shared doc already exists, so a ref-sync failure
       // shouldn't block the success toast — surface it separately.
       syncSharedRefs(shared.id).catch((err) => handleDomainError(err, navigate));
@@ -105,7 +105,7 @@ export function PublishManyButton({
     setProgress({ done: 0, total: docs.length });
     for (const doc of docs) {
       try {
-        const shared = await sharedDocumentsRepo.publish(doc, user.id);
+        const shared = await sharedDocumentsRepo.publish(doc, user.id, user.name);
         syncSharedRefs(shared.id).catch((err) => handleDomainError(err, navigate));
         ok++;
       } catch (err) {

@@ -107,7 +107,11 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const groups = useMemo(() => {
-    if (!seeAll || !user) return [{ owner: user, folders: visibleFolders, docs: visibleDocs }];
+    if (!seeAll || !user) {
+      return [
+        { owner: { id: user?.id, name: user?.name }, folders: visibleFolders, docs: visibleDocs },
+      ];
+    }
     const byOwner = new Map<string, { folders: Folder[]; docs: Document[] }>();
     for (const f of visibleFolders) {
       if (!byOwner.has(f.owner_id)) byOwner.set(f.owner_id, { folders: [], docs: [] });
@@ -118,13 +122,29 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       byOwner.get(d.owner_id)!.docs.push(d);
     }
     return Array.from(byOwner.entries()).map(([ownerId, g]) => ({
-      owner: userMap.get(ownerId) ?? null,
+      // Prefer the real roster (usersRepo-backed userMap) when it resolved;
+      // otherwise fall back to the owner_name snapshot stamped on any of this
+      // owner's own items — the only source of a name when /api/users is
+      // unavailable (mock-only today; see Importantdoc.md §B4.4).
+      owner: {
+        id: ownerId,
+        name: userMap.get(ownerId)?.name ?? g.folders[0]?.owner_name ?? g.docs[0]?.owner_name,
+      },
       folders: g.folders,
       docs: g.docs,
     }));
   }, [seeAll, user, visibleFolders, visibleDocs, userMap]);
 
   const toggle = (id: string) => setOpenFolders((s) => ({ ...s, [id]: !s[id] }));
+
+  // Display-name snapshot stamped at creation (no generic route can list
+  // `user` rows — Importantdoc.md §B4.4 reserves that table to Better-Auth).
+  // In gateway mode the server always attributes ownership to the session
+  // regardless of the `ownerId` argument, so the session's own name is always
+  // the truthful one to stamp; `userMap` covers the mock-mode case where a
+  // caller can (locally) create on behalf of a different id.
+  const ownerName = (ownerId: string) =>
+    ownerId === user?.id ? user?.name : userMap.get(ownerId)?.name;
 
   // Name uniqueness is scoped to the same folder and owner (a file-system mental
   // model), compared case-insensitively and trimmed — matching resolveWikiLink.
@@ -175,6 +195,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         folder_id: folderId,
         title: uniqueName("Novo documento", (name) => docNameTaken(name, folderId, ownerId)),
         content: "",
+        owner_name: ownerName(ownerId),
       });
       await refreshGatewayData();
       if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
@@ -199,6 +220,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         owner_id: ownerId,
         parent_id: parentId,
         name: uniqueName("Nova pasta", (name) => folderNameTaken(name, parentId, ownerId)),
+        owner_name: ownerName(ownerId),
       });
       await refreshGatewayData();
       if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
@@ -579,10 +601,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         {groups.map((g, idx) => {
           const rootFolders = g.folders.filter((f) => !f.parent_id);
           const rootDocs = g.docs.filter((d) => !d.folder_id);
-          const isMe = !!user && g.owner?.id === user.id;
+          const isMe = !!user && g.owner.id === user.id;
           return (
             <div
-              key={g.owner?.id ?? idx}
+              key={g.owner.id ?? idx}
               className={cn("mb-3 rounded", isMe && rootDragOver && "ring-1 ring-primary")}
               onDragOver={(e) => {
                 if (!isMe) return;
@@ -591,9 +613,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
                 if (!rootDragOver) setRootDragOver(true);
               }}
               onDragLeave={() => rootDragOver && setRootDragOver(false)}
-              onDrop={(e) => g.owner && handleDropOnRoot(e, g.owner.id)}
+              onDrop={(e) => g.owner.id && handleDropOnRoot(e, g.owner.id)}
             >
-              {seeAll && g.owner && (
+              {seeAll && g.owner.name && (
                 <div className="mb-1 flex items-center gap-2 px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                   <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-[9px] font-semibold text-primary">
                     {g.owner.name.slice(0, 1)}
