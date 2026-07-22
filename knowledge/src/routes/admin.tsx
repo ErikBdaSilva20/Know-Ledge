@@ -121,17 +121,19 @@ export function AdminPage() {
           <Card>
             <ul className="divide-y divide-border">
               {filteredDocs.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <Link
-                    to={`/workspace/${d.id}`}
-                    className="flex-1 truncate text-sm hover:underline"
-                  >
-                    {d.title}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {displayName(d.owner_name, userMap, d.owner_id)}
-                  </span>
+                <li key={d.id} className="flex items-start gap-3 px-4 py-2.5 sm:items-center">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+                    <Link
+                      to={`/workspace/${d.id}`}
+                      className="min-w-0 truncate text-sm hover:underline sm:flex-1"
+                    >
+                      {d.title}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      {displayName(d.owner_name, userMap, d.owner_id)}
+                    </span>
+                  </div>
                   <ConfirmDialog
                     title={`Excluir "${d.title}"?`}
                     description="Exclusão permanente. Não pode ser desfeita."
@@ -227,14 +229,19 @@ export function AdminPage() {
           <Card>
             <ul className="divide-y divide-border">
               {shared.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <Link to={`/shared/${s.id}`} className="flex-1 truncate text-sm hover:underline">
-                    {s.title}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    Por {displayName(s.published_by_name, userMap, s.published_by)}
-                  </span>
+                <li key={s.id} className="flex items-start gap-3 px-4 py-2.5 sm:items-center">
+                  <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+                    <Link
+                      to={`/shared/${s.id}`}
+                      className="min-w-0 truncate text-sm hover:underline sm:flex-1"
+                    >
+                      {s.title}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      Por {displayName(s.published_by_name, userMap, s.published_by)}
+                    </span>
+                  </div>
                   <ConfirmDialog
                     title={`Remover "${s.title}"?`}
                     description="Remove permanentemente da Base Compartilhada."

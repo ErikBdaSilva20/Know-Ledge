@@ -40,9 +40,11 @@ export function RecentPage() {
                       to={`/workspace/${d.id}`}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent"
                     >
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{d.title}</span>
-                      <span className="text-[10px] uppercase text-muted-foreground">pessoal</span>
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                      <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
+                        pessoal
+                      </span>
                     </Link>
                   </li>
                 );
@@ -55,9 +57,9 @@ export function RecentPage() {
                     to={`/shared/${s.id}`}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent"
                   >
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 truncate">{s.title}</span>
-                    <span className="text-[10px] uppercase text-muted-foreground">
+                    <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                    <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
                       compartilhado
                     </span>
                   </Link>
