@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Search as SearchIcon } from "lucide-react";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { handleDomainError } from "@/lib/handleError";
+import { displayName } from "@/lib/displayName";
 import { SideNavShell } from "@/components/SideNavShell";
 import { cn } from "@/lib/utils";
 
@@ -17,7 +18,8 @@ export function SharedLayout() {
     mockShared,
     sharedDocumentsRepo.list,
   );
-  // No gateway endpoint lists users yet (known gap) — stays mock-only.
+  // Mock-only roster; displayName() falls back to it only when a doc has no
+  // published_by_name snapshot (e.g. published before that field existed).
   const users = useDb((s) => s.users);
   const { user, can } = useSession();
   const navigate = useNavigate();
@@ -97,7 +99,7 @@ export function SharedLayout() {
                 >
                   <span className="truncate font-medium">{s.title || "Sem título"}</span>
                   <span className="mt-0.5 truncate text-[10px] uppercase tracking-wider text-muted-foreground">
-                    Por {userMap.get(s.published_by)?.name ?? "—"}
+                    Por {displayName(s.published_by_name, userMap, s.published_by) ?? "—"}
                   </span>
                 </Link>
               ))

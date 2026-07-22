@@ -9,6 +9,7 @@ import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { usersRepo } from "@/lib/data/users.repo";
+import { displayName } from "@/lib/displayName";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
 import type { Document, Folder, Role } from "@/lib/types";
@@ -129,7 +130,7 @@ export function AdminPage() {
                     {d.title}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    {d.owner_name ?? userMap.get(d.owner_id)?.name}
+                    {displayName(d.owner_name, userMap, d.owner_id)}
                   </span>
                   <ConfirmDialog
                     title={`Excluir "${d.title}"?`}
@@ -164,14 +165,13 @@ export function AdminPage() {
               <Card key={g.ownerId}>
                 <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
                   {(() => {
-                    // Prefer the real roster (usersRepo) when it resolved;
-                    // otherwise fall back to the owner_name snapshot stamped
-                    // on any of this owner's own items — see Explorer.tsx's
-                    // `ownerName` for why that field exists.
-                    const resolvedName =
-                      userMap.get(g.ownerId)?.name ??
-                      g.docs[0]?.owner_name ??
-                      g.folders[0]?.owner_name;
+                    // A group has no single "item" of its own — borrow the
+                    // owner_name snapshot from any doc/folder it owns.
+                    const resolvedName = displayName(
+                      g.docs[0]?.owner_name ?? g.folders[0]?.owner_name,
+                      userMap,
+                      g.ownerId,
+                    );
                     return (
                       <>
                         <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
@@ -233,7 +233,7 @@ export function AdminPage() {
                     {s.title}
                   </Link>
                   <span className="text-xs text-muted-foreground">
-                    Por {s.published_by_name ?? userMap.get(s.published_by)?.name}
+                    Por {displayName(s.published_by_name, userMap, s.published_by)}
                   </span>
                   <ConfirmDialog
                     title={`Remover "${s.title}"?`}
