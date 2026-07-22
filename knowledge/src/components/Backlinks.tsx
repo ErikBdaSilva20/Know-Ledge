@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { documentReferencesRepo } from "@/lib/data/documentReferences.repo";
+import { sharedDocumentReferencesRepo } from "@/lib/data/sharedDocumentReferences.repo";
 import { computeBacklinks } from "@/lib/backlinks";
 import type { Scope } from "@/lib/types";
 import { ChevronDown, ChevronRight, CornerDownRight, Link2 } from "lucide-react";
@@ -12,7 +16,20 @@ import { cn } from "@/lib/utils";
  * and caps its own height so thousands of references don't blow up the layout.
  */
 export function Backlinks({ scope, id }: { scope: Scope; id: string }) {
-  const backlinks = useDb((s) => computeBacklinks(s, scope, id));
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: sharedDocuments } = useGatewayList(sharedDocumentsRepo.list);
+  const { data: documentReferences } = useGatewayList(documentReferencesRepo.list);
+  const { data: sharedDocumentReferences } = useGatewayList(sharedDocumentReferencesRepo.list);
+  const backlinks = computeBacklinks(
+    {
+      documents,
+      shared_documents: sharedDocuments,
+      document_references: documentReferences,
+      shared_document_references: sharedDocumentReferences,
+    },
+    scope,
+    id,
+  );
   const [open, setOpen] = useState(false);
   const count = backlinks.length;
 

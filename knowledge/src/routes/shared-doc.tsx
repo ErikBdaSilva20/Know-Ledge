@@ -1,30 +1,48 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
-import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
-import { favoritesRepo } from "@/lib/repos/favorites";
-import { sharedDocumentsRepo } from "@/lib/repos/sharedDocuments";
+import { favoritesRepo } from "@/lib/data/favorites.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
+import type { SharedDocument } from "@/lib/types";
 
 export function SharedDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const doc = useDb((s) => s.shared_documents.find((d) => d.id === docId));
-  const publishedBy = useDb((s) => (doc ? s.users.find((u) => u.id === doc.published_by) : null));
-  const sourceDoc = useDb((s) =>
-    doc?.source_document_id ? s.documents.find((d) => d.id === doc.source_document_id) : null,
-  );
-  const favorite = useDb((s) =>
-    s.favorites.find(
-      (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
-    ),
+
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5).
+  const [doc, setDoc] = useState<SharedDocument | undefined>(undefined);
+  useEffect(() => {
+    let cancelled = false;
+    setDoc(undefined);
+    sharedDocumentsRepo.list().then((docs) => {
+      if (!cancelled) setDoc(docs.find((d) => d.id === docId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId]);
+
+  const { data: allDocuments } = useGatewayList(documentsRepo.list);
+  const sourceDoc = doc?.source_document_id
+    ? (allDocuments.find((d) => d.id === doc.source_document_id) ?? null)
+    : null;
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(favoritesRepo.list);
+  const favorite = allFavorites.find(
+    (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
   );
 
-  const canEdit = can("editShared");
+  // Shared content is immutable (the Editor enforces read-only for scope
+  // "shared"); this only gates curation — removing the doc from the Base.
+  const canManage = can("editShared");
 
   if (!doc || !docId) {
     return (
@@ -46,7 +64,7 @@ export function SharedDoc() {
         </Link>
         <span className="truncate">
           Publicado por{" "}
-          <span className="font-medium text-foreground">{publishedBy?.name ?? "—"}</span>
+          <span className="font-medium text-foreground">{doc.published_by_name ?? "—"}</span>
         </span>
         {sourceDoc && (
           <span className="truncate text-muted-foreground/70">
@@ -58,13 +76,18 @@ export function SharedDoc() {
             variant="ghost"
             size="sm"
             onClick={async () => {
-              if (favorite) await favoritesRepo.remove(favorite.id);
-              else if (user)
-                await favoritesRepo.create({
-                  owner_id: user.id,
-                  document_scope: "shared",
-                  document_id: docId,
-                });
+              try {
+                if (favorite) await favoritesRepo.remove(favorite.id);
+                else if (user)
+                  await favoritesRepo.create({
+                    owner_id: user.id,
+                    document_scope: "shared",
+                    document_id: docId,
+                  });
+                await refreshFavorites();
+              } catch (err) {
+                handleDomainError(err, navigate);
+              }
             }}
           >
             <Star
@@ -72,13 +95,17 @@ export function SharedDoc() {
             />
             {favorite ? "Favorito" : "Favoritar"}
           </Button>
-          {canEdit && (
+          {canManage && (
             <ConfirmDialog
               title={`Remover "${doc.title}" da Base Compartilhada?`}
               description="O documento será excluído permanentemente da Base Compartilhada. O documento original (se houver) não é afetado."
               onConfirm={async () => {
-                await sharedDocumentsRepo.remove(docId);
-                navigate("/shared");
+                try {
+                  await sharedDocumentsRepo.remove(docId);
+                  navigate("/shared");
+                } catch (err) {
+                  handleDomainError(err, navigate);
+                }
               }}
             >
               <Button variant="ghost" size="sm" className="text-destructive hover:text-destructive">
@@ -91,7 +118,7 @@ export function SharedDoc() {
       </div>
       <div className="relative flex min-h-0 flex-1 flex-col">
         <Backlinks scope="shared" id={docId} />
-        <Editor scope="shared" id={docId} readOnly={!canEdit} />
+        <Editor scope="shared" id={docId} readOnly />
       </div>
     </div>
   );

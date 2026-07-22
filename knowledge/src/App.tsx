@@ -6,6 +6,7 @@ import { useSession } from "./lib/session";
 import { AppShell } from "./components/layout/AppShell";
 
 import { LoginPage } from "./routes/login";
+import { SignUpPage } from "./routes/signup";
 import { Dashboard } from "./routes/dashboard";
 import { WorkspaceLayout } from "./routes/workspace";
 import { WorkspaceIndex } from "./routes/workspace-index";
@@ -18,6 +19,7 @@ import { GraphPage } from "./routes/graph";
 import { FavoritesPage } from "./routes/favorites";
 import { RecentPage } from "./routes/recent";
 import { AdminPage } from "./routes/admin";
+import { HelpPage } from "./routes/help";
 
 function NotFoundPage() {
   return (
@@ -71,19 +73,33 @@ class RootErrorBoundary extends Component<{ children: ReactNode }, ErrorBoundary
   }
 }
 
-/** Redirects unauthenticated users to /login, and authenticated users away from /login. */
+const PUBLIC_PATHS = new Set(["/login", "/signup"]);
+
+/** Redirects unauthenticated users to /login, and authenticated users away from /login or /signup. */
 function RequireAuth() {
-  const { user } = useSession();
+  const { user, sessionLoading } = useSession();
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
-    if (!user && location.pathname !== "/login") {
+    // Hold every redirect until the gateway session probe settles — otherwise
+    // a refresh on any protected route flashes /login before auth.me() has
+    // even answered (user is momentarily null), then bounces back.
+    if (sessionLoading) return;
+    if (!user && !PUBLIC_PATHS.has(location.pathname)) {
       navigate("/login", { replace: true });
-    } else if (user && (location.pathname === "/login" || location.pathname === "/")) {
+    } else if (user && (PUBLIC_PATHS.has(location.pathname) || location.pathname === "/")) {
       navigate("/dashboard", { replace: true });
     }
-  }, [user, location.pathname, navigate]);
+  }, [user, sessionLoading, location.pathname, navigate]);
+
+  if (sessionLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background">
+        <span className="text-sm text-muted-foreground">Carregando…</span>
+      </div>
+    );
+  }
 
   return <Outlet />;
 }
@@ -102,6 +118,7 @@ export function App() {
       <Routes>
         <Route element={<RequireAuth />}>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/signup" element={<SignUpPage />} />
           <Route path="/" element={null} />
           <Route element={<ShellLayout />}>
             <Route path="/dashboard" element={<Dashboard />} />
@@ -118,6 +135,7 @@ export function App() {
             <Route path="/favorites" element={<FavoritesPage />} />
             <Route path="/recent" element={<RecentPage />} />
             <Route path="/admin" element={<AdminPage />} />
+            <Route path="/ajuda" element={<HelpPage />} />
           </Route>
         </Route>
         <Route path="*" element={<NotFoundPage />} />

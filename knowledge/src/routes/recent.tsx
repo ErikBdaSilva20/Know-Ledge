@@ -1,13 +1,15 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Card } from "@/components/ui/card";
 import { BookOpen, FileText } from "lucide-react";
 
 export function RecentPage() {
-  const documents = useDb((s) => s.documents);
-  const shared = useDb((s) => s.shared_documents);
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: shared } = useGatewayList(sharedDocumentsRepo.list);
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   useEffect(() => {
     const update = () => setRecents(getRecents());
@@ -17,7 +19,7 @@ export function RecentPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Recentes</h1>
       <p className="mt-1 text-sm text-muted-foreground">Documentos abertos recentemente.</p>
       <Card className="mt-6">
@@ -35,9 +37,11 @@ export function RecentPage() {
                       to={`/workspace/${d.id}`}
                       className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent"
                     >
-                      <FileText className="h-4 w-4 text-muted-foreground" />
-                      <span className="flex-1 truncate">{d.title}</span>
-                      <span className="text-[10px] uppercase text-muted-foreground">pessoal</span>
+                      <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                      <span className="min-w-0 flex-1 truncate">{d.title}</span>
+                      <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
+                        pessoal
+                      </span>
                     </Link>
                   </li>
                 );
@@ -50,9 +54,9 @@ export function RecentPage() {
                     to={`/shared/${s.id}`}
                     className="flex items-center gap-3 px-4 py-2.5 text-sm hover:bg-accent"
                   >
-                    <BookOpen className="h-4 w-4 text-muted-foreground" />
-                    <span className="flex-1 truncate">{s.title}</span>
-                    <span className="text-[10px] uppercase text-muted-foreground">
+                    <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{s.title}</span>
+                    <span className="shrink-0 text-[10px] uppercase text-muted-foreground">
                       compartilhado
                     </span>
                   </Link>

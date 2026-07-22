@@ -1,19 +1,20 @@
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/repos/documents";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { getRecents, type RecentEntry } from "@/lib/recents";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { FileText, Plus, Star, Timer } from "lucide-react";
+import { FileText, Star, Timer } from "lucide-react";
 
 export function Dashboard() {
   const { user } = useSession();
-  const navigate = useNavigate();
-  const documents = useDb((s) => s.documents);
-  const sharedDocs = useDb((s) => s.shared_documents);
-  const favorites = useDb((s) => s.favorites);
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: sharedDocs } = useGatewayList(sharedDocumentsRepo.list);
+  const { data: favorites } = useGatewayList(favoritesRepo.list);
 
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   useEffect(() => {
@@ -49,7 +50,7 @@ export function Dashboard() {
   };
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-5xl px-4 py-6 sm:px-8 sm:py-10">
       <div className="mb-8">
         <h1 className="text-3xl font-semibold tracking-tight">Olá, {user.name.split(" ")[0]}.</h1>
         <p className="mt-1 text-sm text-muted-foreground">
@@ -59,20 +60,6 @@ export function Dashboard() {
       </div>
 
       <div className="mb-8 flex flex-wrap gap-2">
-        <Button
-          onClick={async () => {
-            const d = await documentsRepo.create({
-              owner_id: user.id,
-              title: "Sem título",
-              content: "",
-              folder_id: null,
-            });
-            navigate(`/workspace/${d.id}`);
-          }}
-        >
-          <Plus className="mr-2 h-4 w-4" />
-          Novo documento
-        </Button>
         <Button variant="outline" asChild>
           <Link to="/workspace">Abrir Workspace</Link>
         </Button>

@@ -1,0 +1,154 @@
+/*
+ * Syntax highlighting theme for fenced code blocks (.markdown-body pre code).
+ *
+ * A purpose-built palette rather than a stock highlight.js theme: the token
+ * colours are declared as CSS variables with light + dark values (calibrated
+ * off GitHub's light/dark syntax palettes for legibility) so code reads the
+ * same way the rest of the prose respects the app's theme toggle. The block
+ * chrome (background, border, padding) already lives in prose.css — this file
+ * only colours the hljs-* token spans.
+ */
+
+.markdown-body {
+  --kv-syn-comment: #6e7781;
+  --kv-syn-keyword: #cf222e;
+  --kv-syn-string: #0a3069;
+  --kv-syn-number: #0550ae;
+  --kv-syn-function: #8250df;
+  --kv-syn-class: #953800;
+  --kv-syn-builtin: #6639ba;
+  --kv-syn-tag: #116329;
+  --kv-syn-attr: #0550ae;
+  --kv-syn-variable: #953800;
+  --kv-syn-meta: #0550ae;
+  --kv-syn-addition-fg: #116329;
+  --kv-syn-addition-bg: color-mix(in oklch, #116329 12%, transparent);
+  --kv-syn-deletion-fg: #82071e;
+  --kv-syn-deletion-bg: color-mix(in oklch, #82071e 12%, transparent);
+}
+
+.dark .markdown-body {
+  --kv-syn-comment: #8b949e;
+  --kv-syn-keyword: #ff7b72;
+  --kv-syn-string: #a5d6ff;
+  --kv-syn-number: #79c0ff;
+  --kv-syn-function: #d2a8ff;
+  --kv-syn-class: #ffa657;
+  --kv-syn-builtin: #ffa657;
+  --kv-syn-tag: #7ee787;
+  --kv-syn-attr: #79c0ff;
+  --kv-syn-variable: #ffa657;
+  --kv-syn-meta: #79c0ff;
+  --kv-syn-addition-fg: #aff5b4;
+  --kv-syn-addition-bg: color-mix(in oklch, #3fb950 18%, transparent);
+  --kv-syn-deletion-fg: #ffdcd7;
+  --kv-syn-deletion-bg: color-mix(in oklch, #f85149 18%, transparent);
+}
+
+/* Comments & docs */
+.markdown-body pre code .hljs-comment,
+.markdown-body pre code .hljs-quote {
+  color: var(--kv-syn-comment);
+  font-style: italic;
+}
+
+/* Keywords & control flow */
+.markdown-body pre code .hljs-keyword,
+.markdown-body pre code .hljs-selector-tag,
+.markdown-body pre code .hljs-literal,
+.markdown-body pre code .hljs-section,
+.markdown-body pre code .hljs-doctag,
+.markdown-body pre code .hljs-name {
+  color: var(--kv-syn-keyword);
+}
+
+/* Strings & regex */
+.markdown-body pre code .hljs-string,
+.markdown-body pre code .hljs-regexp,
+.markdown-body pre code .hljs-char.escape_,
+.markdown-body pre code .hljs-meta .hljs-string,
+.markdown-body pre code .hljs-template-tag {
+  color: var(--kv-syn-string);
+}
+
+/* Numbers & constants */
+.markdown-body pre code .hljs-number,
+.markdown-body pre code .hljs-symbol,
+.markdown-body pre code .hljs-bullet {
+  color: var(--kv-syn-number);
+}
+
+/* Function & method names — the "colorir as funções" the ask was about */
+.markdown-body pre code .hljs-title.function_,
+.markdown-body pre code .hljs-title.function_.invoke__,
+.markdown-body pre code .hljs-title {
+  color: var(--kv-syn-function);
+}
+
+/* Types, classes, namespaces */
+.markdown-body pre code .hljs-title.class_,
+.markdown-body pre code .hljs-type,
+.markdown-body pre code .hljs-class .hljs-title {
+  color: var(--kv-syn-class);
+}
+
+/* Built-ins & language constructs */
+.markdown-body pre code .hljs-built_in,
+.markdown-body pre code .hljs-builtin-name,
+.markdown-body pre code .hljs-selector-id,
+.markdown-body pre code .hljs-selector-class {
+  color: var(--kv-syn-builtin);
+}
+
+/* Markup tags */
+.markdown-body pre code .hljs-tag,
+.markdown-body pre code .hljs-selector-pseudo {
+  color: var(--kv-syn-tag);
+}
+
+/* Attributes & properties */
+.markdown-body pre code .hljs-attr,
+.markdown-body pre code .hljs-attribute,
+.markdown-body pre code .hljs-property,
+.markdown-body pre code .hljs-params {
+  color: var(--kv-syn-attr);
+}
+
+/* Variables & template interpolation */
+.markdown-body pre code .hljs-variable,
+.markdown-body pre code .hljs-template-variable,
+.markdown-body pre code .hljs-subst {
+  color: var(--kv-syn-variable);
+}
+
+/* Meta: preprocessor, decorators, shebangs */
+.markdown-body pre code .hljs-meta,
+.markdown-body pre code .hljs-meta .hljs-keyword {
+  color: var(--kv-syn-meta);
+}
+
+/* Diff blocks */
+.markdown-body pre code .hljs-addition {
+  color: var(--kv-syn-addition-fg);
+  background: var(--kv-syn-addition-bg);
+  display: inline-block;
+  width: 100%;
+}
+.markdown-body pre code .hljs-deletion {
+  color: var(--kv-syn-deletion-fg);
+  background: var(--kv-syn-deletion-bg);
+  display: inline-block;
+  width: 100%;
+}
+
+/* Emphasis carried by the grammar (e.g. markdown inside a fenced md block) */
+.markdown-body pre code .hljs-emphasis {
+  font-style: italic;
+}
+.markdown-body pre code .hljs-strong {
+  font-weight: 650;
+}
+.markdown-body pre code .hljs-link {
+  color: var(--kv-syn-attr);
+  text-decoration: underline;
+}

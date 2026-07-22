@@ -1,22 +1,3 @@
-import { useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import {
-  ChevronDown,
-  ChevronRight,
-  FilePlus,
-  FolderPlus,
-  FileText,
-  Folder as FolderIcon,
-  MoreHorizontal,
-  Trash2,
-  Pencil,
-  PanelLeft,
-} from "lucide-react";
-import type { Document, Folder } from "@/lib/types";
-import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
-import { documentsRepo } from "@/lib/repos/documents";
-import { foldersRepo } from "@/lib/repos/folders";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -24,9 +5,33 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { ConfirmDialog } from "./ConfirmDialog";
-import { SideNavShell } from "./SideNavShell";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
+import { usersRepo } from "@/lib/data/users.repo";
+import { handleDomainError } from "@/lib/handleError";
+import { useSession } from "@/lib/session";
+import type { Document, Folder } from "@/lib/types";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { cn } from "@/lib/utils";
+import {
+  ChevronDown,
+  ChevronRight,
+  FilePlus,
+  FileText,
+  Folder as FolderIcon,
+  FolderInput,
+  FolderPlus,
+  MoreHorizontal,
+  PanelLeft,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { toast } from "sonner";
+import { Link, useNavigate } from "react-router-dom";
+import { ConfirmDialog } from "./ConfirmDialog";
+import { MoveDocDialog } from "./MoveDocDialog";
+import { SideNavShell } from "./SideNavShell";
 
 interface Props {
   activeDocId?: string;
@@ -49,19 +54,38 @@ function isDescendant(allFolders: Folder[], candidateParentId: string, folderId:
 export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const folders = useDb((s) => s.folders);
-  const documents = useDb((s) => s.documents);
-  const users = useDb((s) => s.users);
+  const { data: users } = useGatewayList(usersRepo.list);
+
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5),
+  // so fetch the folders/documents straight from the repos and refetch after
+  // every mutation this component makes.
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
+
+  const refreshData = async () => {
+    const [f, d] = await Promise.all([foldersRepo.list(), documentsRepo.list()]);
+    setFolders(f);
+    setDocuments(d);
+  };
+
+  useEffect(() => {
+    refreshData();
+  }, []);
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [renaming, setRenaming] = useState<{ kind: "folder" | "document"; id: string } | null>(
     null,
   );
   const [renameValue, setRenameValue] = useState("");
-  // Track folders that were just created — commit with empty name deletes them
-  const [pendingNewFolders, setPendingNewFolders] = useState<Set<string>>(new Set());
+  // Track items (folders OR documents) just created inline — committing an
+  // empty name deletes them (nothing can be saved without a name).
+  const [pendingNewItems, setPendingNewItems] = useState<Set<string>>(new Set());
   const [dragOverId, setDragOverId] = useState<string | null>(null);
   const [rootDragOver, setRootDragOver] = useState(false);
+  // The last folder the user clicked in the tree — "Novo documento" in the
+  // toolbar above drops the new doc there instead of always at root, so
+  // opening a folder and hitting the top button behaves like "new doc here".
+  const [lastClickedFolderId, setLastClickedFolderId] = useState<string | null>(null);
 
   const seeAll = can("seeAllDocs");
   const visibleFolders = useMemo(
@@ -76,7 +100,11 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const userMap = useMemo(() => new Map(users.map((u) => [u.id, u])), [users]);
 
   const groups = useMemo(() => {
-    if (!seeAll || !user) return [{ owner: user, folders: visibleFolders, docs: visibleDocs }];
+    if (!seeAll || !user) {
+      return [
+        { owner: { id: user?.id, name: user?.name }, folders: visibleFolders, docs: visibleDocs },
+      ];
+    }
     const byOwner = new Map<string, { folders: Folder[]; docs: Document[] }>();
     for (const f of visibleFolders) {
       if (!byOwner.has(f.owner_id)) byOwner.set(f.owner_id, { folders: [], docs: [] });
@@ -87,7 +115,14 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       byOwner.get(d.owner_id)!.docs.push(d);
     }
     return Array.from(byOwner.entries()).map(([ownerId, g]) => ({
-      owner: userMap.get(ownerId) ?? null,
+      // Prefer the real roster (usersRepo-backed userMap) when it resolved;
+      // otherwise fall back to the owner_name snapshot stamped on any of this
+      // owner's own items — the only source of a name when /api/users is
+      // unavailable (Importantdoc.md §B4.4).
+      owner: {
+        id: ownerId,
+        name: userMap.get(ownerId)?.name ?? g.folders[0]?.owner_name ?? g.docs[0]?.owner_name,
+      },
       folders: g.folders,
       docs: g.docs,
     }));
@@ -95,34 +130,102 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const toggle = (id: string) => setOpenFolders((s) => ({ ...s, [id]: !s[id] }));
 
+  // Display-name snapshot stamped at creation (no generic route can list
+  // `user` rows — Importantdoc.md §B4.4 reserves that table to Better-Auth).
+  // The gateway always attributes ownership to the session regardless of the
+  // `ownerId` argument, so the session's own name is the truthful one to stamp;
+  // `userMap` only ever matters for an admin viewing another owner's items.
+  const ownerName = (ownerId: string) =>
+    ownerId === user?.id ? user?.name : userMap.get(ownerId)?.name;
+
+  // Name uniqueness is scoped to the same folder and owner (a file-system mental
+  // model), compared case-insensitively and trimmed — matching resolveWikiLink.
+  const norm = (s: string) => s.trim().toLowerCase();
+  const docNameTaken = (
+    title: string,
+    folderId: string | null,
+    ownerId: string,
+    excludeId?: string,
+  ) =>
+    documents.some(
+      (d) =>
+        d.owner_id === ownerId &&
+        (d.folder_id ?? null) === folderId &&
+        d.id !== excludeId &&
+        norm(d.title) === norm(title),
+    );
+  const folderNameTaken = (
+    name: string,
+    parentId: string | null,
+    ownerId: string,
+    excludeId?: string,
+  ) =>
+    folders.some(
+      (f) =>
+        f.owner_id === ownerId &&
+        (f.parent_id ?? null) === parentId &&
+        f.id !== excludeId &&
+        norm(f.name) === norm(name),
+    );
+  // Placeholder for a freshly created item: "Novo documento", then "Novo
+  // documento 2"… so even an un-renamed new item never collides with a sibling.
+  const uniqueName = (base: string, taken: (name: string) => boolean) => {
+    if (!taken(base)) return base;
+    let i = 2;
+    while (taken(`${base} ${i}`)) i++;
+    return `${base} ${i}`;
+  };
+
+  // Create document inline: mirrors createFolder. The doc is created with a
+  // placeholder title and immediately enters rename mode (file icon, empty
+  // input). Committing an empty name deletes it; committing a name opens it
+  // in the editor (naming-then-editing is the point of a new document).
   const createDoc = async (ownerId: string, folderId: string | null) => {
-    const d = await documentsRepo.create({
-      owner_id: ownerId,
-      folder_id: folderId,
-      title: "Sem título",
-      content: "",
-    });
-    if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
-    navigate(`/workspace/${d.id}`);
+    try {
+      const d = await documentsRepo.create({
+        owner_id: ownerId,
+        folder_id: folderId,
+        title: uniqueName("Novo documento", (name) => docNameTaken(name, folderId, ownerId)),
+        content: "",
+        owner_name: ownerName(ownerId),
+      });
+      await refreshData();
+      if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
+      setPendingNewItems((s) => {
+        const n = new Set(s);
+        n.add(d.id);
+        return n;
+      });
+      setRenaming({ kind: "document", id: d.id });
+      setRenameValue("");
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   // Create folder inline: no prompt. Folder is created with a placeholder name and
   // immediately enters rename mode. If the user commits an empty name, the pending
   // folder is deleted (folders cannot be saved without a name).
   const createFolder = async (ownerId: string, parentId: string | null) => {
-    const f = await foldersRepo.create({
-      owner_id: ownerId,
-      parent_id: parentId,
-      name: "Nova pasta",
-    });
-    if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
-    setPendingNewFolders((s) => {
-      const n = new Set(s);
-      n.add(f.id);
-      return n;
-    });
-    setRenaming({ kind: "folder", id: f.id });
-    setRenameValue("");
+    try {
+      const f = await foldersRepo.create({
+        owner_id: ownerId,
+        parent_id: parentId,
+        name: uniqueName("Nova pasta", (name) => folderNameTaken(name, parentId, ownerId)),
+        owner_name: ownerName(ownerId),
+      });
+      await refreshData();
+      if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
+      setPendingNewItems((s) => {
+        const n = new Set(s);
+        n.add(f.id);
+        return n;
+      });
+      setRenaming({ kind: "folder", id: f.id });
+      setRenameValue("");
+    } catch (err) {
+      handleDomainError(err, navigate);
+    }
   };
 
   const startRename = (kind: "folder" | "document", id: string, current: string) => {
@@ -132,83 +235,159 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   const commitRename = async () => {
     if (!renaming) return;
+    const { kind, id } = renaming;
     const v = renameValue.trim();
-    const isPendingNew = renaming.kind === "folder" && pendingNewFolders.has(renaming.id);
+    const isPendingNew = pendingNewItems.has(id);
 
-    if (!v) {
-      // Empty name: for a brand-new folder, delete it (can't save without a name).
+    try {
+      if (!v) {
+        // Empty name on a brand-new item: delete it (can't save without a name).
+        if (isPendingNew) {
+          if (kind === "folder") await foldersRepo.remove(id);
+          else await documentsRepo.remove(id);
+          await refreshData();
+          setPendingNewItems((s) => {
+            const n = new Set(s);
+            n.delete(id);
+            return n;
+          });
+          if (kind === "folder") setLastClickedFolderId((cur) => (cur === id ? null : cur));
+        }
+        // For an existing item, empty name is just a no-op cancel.
+        setRenaming(null);
+        return;
+      }
+
+      if (kind === "folder") {
+        const self = folders.find((f) => f.id === id);
+        if (self && folderNameTaken(v, self.parent_id ?? null, self.owner_id, id)) {
+          toast.error("Já existe uma pasta com esse nome nesta pasta.");
+          return; // keep the rename input open so the user can fix it
+        }
+        await foldersRepo.update(id, { name: v });
+      } else {
+        const self = documents.find((d) => d.id === id);
+        if (self && docNameTaken(v, self.folder_id ?? null, self.owner_id, id)) {
+          toast.error("Já existe um documento com esse nome nesta pasta.");
+          return; // keep the rename input open so the user can fix it
+        }
+        await documentsRepo.update(id, { title: v });
+      }
+      await refreshData();
+
       if (isPendingNew) {
-        await foldersRepo.remove(renaming.id);
-        setPendingNewFolders((s) => {
+        setPendingNewItems((s) => {
           const n = new Set(s);
-          n.delete(renaming.id);
+          n.delete(id);
           return n;
         });
       }
-      // For an existing item, empty name is just a no-op cancel.
       setRenaming(null);
-      return;
-    }
 
-    if (renaming.kind === "folder") await foldersRepo.update(renaming.id, { name: v });
-    else await documentsRepo.update(renaming.id, { title: v });
-
-    if (isPendingNew) {
-      setPendingNewFolders((s) => {
-        const n = new Set(s);
-        n.delete(renaming.id);
-        return n;
-      });
+      // A freshly-named document opens in the editor — folders just stay put.
+      if (isPendingNew && kind === "document") navigate(`/workspace/${id}`);
+    } catch (err) {
+      handleDomainError(err, navigate);
     }
-    setRenaming(null);
   };
 
   const cancelRename = async () => {
     if (!renaming) return;
-    // Cancelling a brand-new folder without a name → delete it.
-    if (renaming.kind === "folder" && pendingNewFolders.has(renaming.id) && !renameValue.trim()) {
-      await foldersRepo.remove(renaming.id);
-      setPendingNewFolders((s) => {
-        const n = new Set(s);
-        n.delete(renaming.id);
-        return n;
-      });
+    const { kind, id } = renaming;
+    try {
+      // Cancelling a brand-new item without a name → delete it.
+      if (pendingNewItems.has(id) && !renameValue.trim()) {
+        if (kind === "folder") await foldersRepo.remove(id);
+        else await documentsRepo.remove(id);
+        await refreshData();
+        setPendingNewItems((s) => {
+          const n = new Set(s);
+          n.delete(id);
+          return n;
+        });
+        if (kind === "folder") setLastClickedFolderId((cur) => (cur === id ? null : cur));
+      }
+      setRenaming(null);
+    } catch (err) {
+      handleDomainError(err, navigate);
     }
-    setRenaming(null);
   };
 
   const canDragFolder = (f: Folder) => !!user && f.owner_id === user.id;
+  const canDragDoc = (d: Document) => !!user && d.owner_id === user.id;
   const canDropOnTarget = (targetOwnerId: string) => !!user && targetOwnerId === user.id;
 
   const handleDropOnFolder = async (
     e: React.DragEvent,
     targetFolder: Folder,
     allFolders: Folder[],
+    allDocs: Document[],
   ) => {
     e.preventDefault();
     e.stopPropagation();
     setDragOverId(null);
-    const draggedId = e.dataTransfer.getData("application/x-folder-id");
-    if (!draggedId || !user) return;
-    const dragged = allFolders.find((f) => f.id === draggedId);
-    if (!dragged || dragged.owner_id !== user.id) return;
-    if (!canDropOnTarget(targetFolder.owner_id)) return;
-    if (isDescendant(allFolders, targetFolder.id, dragged.id)) return;
-    if (dragged.parent_id === targetFolder.id) return;
-    await foldersRepo.update(draggedId, { parent_id: targetFolder.id });
-    setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+    if (!user || !canDropOnTarget(targetFolder.owner_id)) return;
+
+    const draggedFolderId = e.dataTransfer.getData("application/x-folder-id");
+    if (draggedFolderId) {
+      const dragged = allFolders.find((f) => f.id === draggedFolderId);
+      if (!dragged || dragged.owner_id !== user.id) return;
+      if (isDescendant(allFolders, targetFolder.id, dragged.id)) return;
+      if (dragged.parent_id === targetFolder.id) return;
+      try {
+        await foldersRepo.update(draggedFolderId, { parent_id: targetFolder.id });
+        await refreshData();
+        setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+      return;
+    }
+
+    const draggedDocId = e.dataTransfer.getData("application/x-document-id");
+    if (draggedDocId) {
+      const dragged = allDocs.find((d) => d.id === draggedDocId);
+      if (!dragged || dragged.owner_id !== user.id) return;
+      if (dragged.folder_id === targetFolder.id) return;
+      try {
+        await documentsRepo.update(draggedDocId, { folder_id: targetFolder.id });
+        await refreshData();
+        setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+    }
   };
 
   const handleDropOnRoot = async (e: React.DragEvent, ownerId: string) => {
     e.preventDefault();
     setRootDragOver(false);
-    const draggedId = e.dataTransfer.getData("application/x-folder-id");
-    if (!draggedId || !user) return;
-    if (ownerId !== user.id) return;
-    const dragged = folders.find((f) => f.id === draggedId);
-    if (!dragged || dragged.owner_id !== user.id) return;
-    if (dragged.parent_id === null) return;
-    await foldersRepo.update(draggedId, { parent_id: null });
+    if (!user || ownerId !== user.id) return;
+
+    const draggedFolderId = e.dataTransfer.getData("application/x-folder-id");
+    if (draggedFolderId) {
+      const dragged = folders.find((f) => f.id === draggedFolderId);
+      if (!dragged || dragged.owner_id !== user.id || dragged.parent_id === null) return;
+      try {
+        await foldersRepo.update(draggedFolderId, { parent_id: null });
+        await refreshData();
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+      return;
+    }
+
+    const draggedDocId = e.dataTransfer.getData("application/x-document-id");
+    if (draggedDocId) {
+      const dragged = documents.find((d) => d.id === draggedDocId);
+      if (!dragged || dragged.owner_id !== user.id || dragged.folder_id === null) return;
+      try {
+        await documentsRepo.update(draggedDocId, { folder_id: null });
+        await refreshData();
+      } catch (err) {
+        handleDomainError(err, navigate);
+      }
+    }
   };
 
   const renderFolder = (
@@ -229,12 +408,17 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         <div
           role="button"
           tabIndex={0}
-          onClick={() => !isRenaming && toggle(folder.id)}
+          onClick={() => {
+            if (isRenaming) return;
+            toggle(folder.id);
+            setLastClickedFolderId(folder.id);
+          }}
           onKeyDown={(e) => {
             if (isRenaming) return;
             if (e.key === "Enter" || e.key === " ") {
               e.preventDefault();
               toggle(folder.id);
+              setLastClickedFolderId(folder.id);
             }
           }}
           draggable={draggable && !isRenaming}
@@ -254,7 +438,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
             e.stopPropagation();
             if (dragOverId === folder.id) setDragOverId(null);
           }}
-          onDrop={(e) => handleDropOnFolder(e, folder, allFolders)}
+          onDrop={(e) => handleDropOnFolder(e, folder, allFolders, allDocs)}
           className={cn(
             "group flex cursor-pointer select-none items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent",
             isDragOver && "bg-accent ring-1 ring-primary",
@@ -288,7 +472,15 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               onNewDoc={() => createDoc(folder.owner_id, folder.id)}
               onNewFolder={() => createFolder(folder.owner_id, folder.id)}
               onRename={() => startRename("folder", folder.id, folder.name)}
-              onDelete={() => foldersRepo.remove(folder.id)}
+              onDelete={() =>
+                foldersRepo
+                  .remove(folder.id)
+                  .then(() => {
+                    setLastClickedFolderId((cur) => (cur === folder.id ? null : cur));
+                    return refreshData();
+                  })
+                  .catch((err) => handleDomainError(err, navigate))
+              }
               itemName={folder.name}
               isFolder
             />
@@ -307,9 +499,16 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const renderDoc = (doc: Document, depth: number) => {
     const isRenaming = renaming?.kind === "document" && renaming.id === doc.id;
     const isActive = doc.id === activeDocId;
+    const draggable = canDragDoc(doc);
     return (
       <div
         key={doc.id}
+        draggable={draggable && !isRenaming}
+        onDragStart={(e) => {
+          if (!draggable) return;
+          e.dataTransfer.setData("application/x-document-id", doc.id);
+          e.dataTransfer.effectAllowed = "move";
+        }}
         className={cn(
           "group flex items-center gap-1 rounded px-1.5 py-1 text-sm hover:bg-accent",
           isActive && "bg-accent font-medium",
@@ -321,6 +520,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
           <input
             autoFocus
             value={renameValue}
+            placeholder="Nome do documento"
             onChange={(e) => setRenameValue(e.target.value)}
             onBlur={commitRename}
             onKeyDown={(e) => {
@@ -336,7 +536,27 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         )}
         <FolderMenu
           onRename={() => startRename("document", doc.id, doc.title)}
-          onDelete={() => documentsRepo.remove(doc.id)}
+          onDelete={() =>
+            documentsRepo
+              .remove(doc.id)
+              .then(refreshData)
+              .catch((err) => handleDomainError(err, navigate))
+          }
+          // Same ownership rule as the drag-and-drop path this replaces for
+          // touch — no point offering a move the gateway would reject anyway.
+          moveItem={
+            draggable && (
+              <MoveDocDialog
+                doc={doc}
+                folders={folders.filter((f) => f.owner_id === doc.owner_id)}
+                onMoved={refreshData}
+              >
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <FolderInput className="mr-2 h-3.5 w-3.5" /> Mover para…
+                </DropdownMenuItem>
+              </MoveDocDialog>
+            )
+          }
           itemName={doc.title || "Sem título"}
         />
       </div>
@@ -365,8 +585,19 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
             variant="ghost"
             size="icon"
             className="h-6 w-6"
-            title="Novo documento na raiz"
-            onClick={() => user && createDoc(user.id, null)}
+            title={
+              lastClickedFolderId ? "Novo documento na pasta selecionada" : "Novo documento na raiz"
+            }
+            onClick={() => {
+              if (!user) return;
+              // Guard against a stale reference to a folder that's since
+              // been deleted or moved out of view — fall back to root.
+              const targetFolderId =
+                lastClickedFolderId && folders.some((f) => f.id === lastClickedFolderId)
+                  ? lastClickedFolderId
+                  : null;
+              createDoc(user.id, targetFolderId);
+            }}
           >
             <FilePlus className="h-3.5 w-3.5" />
           </Button>
@@ -377,10 +608,10 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         {groups.map((g, idx) => {
           const rootFolders = g.folders.filter((f) => !f.parent_id);
           const rootDocs = g.docs.filter((d) => !d.folder_id);
-          const isMe = !!user && g.owner?.id === user.id;
+          const isMe = !!user && g.owner.id === user.id;
           return (
             <div
-              key={g.owner?.id ?? idx}
+              key={g.owner.id ?? idx}
               className={cn("mb-3 rounded", isMe && rootDragOver && "ring-1 ring-primary")}
               onDragOver={(e) => {
                 if (!isMe) return;
@@ -389,9 +620,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
                 if (!rootDragOver) setRootDragOver(true);
               }}
               onDragLeave={() => rootDragOver && setRootDragOver(false)}
-              onDrop={(e) => g.owner && handleDropOnRoot(e, g.owner.id)}
+              onDrop={(e) => g.owner.id && handleDropOnRoot(e, g.owner.id)}
             >
-              {seeAll && g.owner && (
+              {seeAll && g.owner.name && (
                 <div className="mb-1 flex items-center gap-2 px-2 py-1 text-[11px] uppercase tracking-wider text-muted-foreground">
                   <div className="flex h-4 w-4 items-center justify-center rounded-full bg-primary/20 text-[9px] font-semibold text-primary">
                     {g.owner.name.slice(0, 1)}
@@ -419,15 +650,36 @@ interface MenuProps {
   onNewFolder?: () => void;
   onRename: () => void;
   onDelete: () => void;
+  /** Pre-built "Mover para…" item (owns its own dialog) — documents only. */
+  moveItem?: ReactNode;
   itemName: string;
   isFolder?: boolean;
 }
 
-function FolderMenu({ onNewDoc, onNewFolder, onRename, onDelete, itemName, isFolder }: MenuProps) {
+function FolderMenu({
+  onNewDoc,
+  onNewFolder,
+  onRename,
+  onDelete,
+  moveItem,
+  itemName,
+  isFolder,
+}: MenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+        <button
+          className={cn(
+            "flex min-h-11 min-w-11 items-center justify-center rounded opacity-60 transition-opacity",
+            "focus:opacity-100 data-[state=open]:opacity-100",
+            // Hover-reveal is desktop-only: `no-touch:` never matches on a
+            // device with a touchscreen, so this row's actions stay reachable
+            // there instead of depending on a `:hover` that never fires.
+            "no-touch:min-h-0 no-touch:min-w-0 no-touch:opacity-0 no-touch:group-hover:opacity-100",
+          )}
+          aria-label={isFolder ? `Ações da pasta ${itemName}` : `Ações de ${itemName}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
@@ -445,6 +697,7 @@ function FolderMenu({ onNewDoc, onNewFolder, onRename, onDelete, itemName, isFol
         <DropdownMenuItem onSelect={onRename}>
           <Pencil className="mr-2 h-3.5 w-3.5" /> Renomear
         </DropdownMenuItem>
+        {moveItem}
         <ConfirmDialog
           title={isFolder ? `Excluir pasta "${itemName}"?` : `Excluir "${itemName}"?`}
           description={
