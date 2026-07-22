@@ -1,13 +1,13 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { toast } from "sonner";
-import { useSession } from "@/lib/session";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { auth } from "@/lib/data/client";
 import { DomainError } from "@/lib/data/errors";
 import { handleDomainError } from "@/lib/handleError";
+import { useSession } from "@/lib/session";
 import { checkPassword, isValidEmail } from "@/lib/validation";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { toast } from "sonner";
 
 interface Props {
   mode: "signin" | "signup";
@@ -70,9 +70,7 @@ export function GatewayAuthForm({ mode }: Props) {
       <h1 className="text-2xl font-semibold tracking-tight">
         {isSignUp ? "Criar conta" : "Entrar"}
       </h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Conectado ao gateway em <code>{import.meta.env.VITE_GATEWAY_URL}</code>.
-      </p>
+      <p className="mt-1 text-sm text-muted-foreground">Sua base de conhecimento organizada!</p>
       <div className="mt-6 space-y-3">
         {isSignUp && (
           <Input
