@@ -79,25 +79,27 @@ export function AdminPage() {
       </div>
 
       <Tabs defaultValue="docs" className="mt-8">
-        <TabsList>
-          <TabsTrigger value="docs">Documentos</TabsTrigger>
-          <TabsTrigger value="vaults">Vaults</TabsTrigger>
-          <TabsTrigger value="shared">Base Compartilhada</TabsTrigger>
-          <TabsTrigger value="users">Usuários</TabsTrigger>
-        </TabsList>
+        <div className="overflow-x-auto">
+          <TabsList>
+            <TabsTrigger value="docs">Documentos</TabsTrigger>
+            <TabsTrigger value="vaults">Vaults</TabsTrigger>
+            <TabsTrigger value="shared">Base Compartilhada</TabsTrigger>
+            <TabsTrigger value="users">Usuários</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="docs" className="mt-4">
-          <div className="mb-3 flex gap-2">
+          <div className="mb-3 flex flex-col gap-2 sm:flex-row">
             <Input
               placeholder="Buscar…"
               value={q}
               onChange={(e) => setQ(e.target.value)}
-              className="max-w-xs"
+              className="sm:max-w-xs sm:flex-1"
             />
             <select
               value={ownerFilter}
               onChange={(e) => setOwnerFilter(e.target.value)}
-              className="rounded-md border border-input bg-background px-3 text-sm"
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm sm:w-auto sm:shrink-0"
             >
               <option value="all">Todos os donos</option>
               {users.map((u) => (
