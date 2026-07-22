@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <path d="M8 3 H19 L25 9 V28 A1 1 0 0 1 24 29 H8 A1 1 0 0 1 7 28 V4 A1 1 0 0 1 8 3 Z"
+        fill="oklch(0.208 0.042 265.755)"/>
+  <path d="M19 3 L25 9 H20 A1 1 0 0 1 19 8 Z" fill="oklch(0.55 0.06 265.755)"/>
+  <g stroke="oklch(0.97 0.005 265.755)" stroke-width="1.4" stroke-linecap="round">
+    <line x1="11" y1="15" x2="21" y2="15"/>
+    <line x1="11" y1="19" x2="21" y2="19"/>
+    <line x1="11" y1="23" x2="17" y2="23"/>
+  </g>
+</svg>
