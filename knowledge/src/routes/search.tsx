@@ -1,15 +1,22 @@
 import { Link } from "react-router-dom";
 import { useMemo, useState } from "react";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
 import { useSession } from "@/lib/session";
 import { Input } from "@/components/ui/input";
 import { BookOpen, FileText, Folder as FolderIcon, Search as SearchIcon } from "lucide-react";
 
 export function SearchPage() {
   const { user, can } = useSession();
-  const documents = useDb((s) => s.documents);
-  const shared = useDb((s) => s.shared_documents);
-  const folders = useDb((s) => s.folders);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockShared = useDb((s) => s.shared_documents);
+  const mockFolders = useDb((s) => s.folders);
+  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: shared } = useGatewayList(mockShared, sharedDocumentsRepo.list);
+  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
   const [q, setQ] = useState("");
 
   const query = q.trim().toLowerCase();
@@ -30,7 +37,7 @@ export function SearchPage() {
   }, [query, documents, shared, folders, can, user?.id]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
       <div className="mb-6">
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />

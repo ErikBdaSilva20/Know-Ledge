@@ -1,25 +1,43 @@
-import { Link, useNavigate } from "react-router-dom";
-import { useEffect, useMemo, useState } from "react";
-import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
-import { documentsRepo } from "@/lib/data/documents.repo";
-import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
-import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import type { Role } from "@/lib/types";
+import { FolderTree, collectDocsInSubtree } from "@/components/FolderTree";
+import { PublishManyButton, PublishToSharedButton } from "@/components/PublishToSharedButton";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { foldersRepo } from "@/lib/data/folders.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { usersRepo } from "@/lib/data/users.repo";
+import { displayName } from "@/lib/displayName";
+import { handleDomainError } from "@/lib/handleError";
+import { useSession } from "@/lib/session";
+import type { Document, Folder, Role } from "@/lib/types";
+import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
+import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 
 export function AdminPage() {
   const { can } = useSession();
   const navigate = useNavigate();
-  const documents = useDb((s) => s.documents);
-  const folders = useDb((s) => s.folders);
-  const shared = useDb((s) => s.shared_documents);
-  const users = useDb((s) => s.users);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockFolders = useDb((s) => s.folders);
+  const mockShared = useDb((s) => s.shared_documents);
+  const mockUsers = useDb((s) => s.users);
+  const { data: documents, refresh: refreshDocuments } = useGatewayList(
+    mockDocuments,
+    documentsRepo.list,
+  );
+  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
+  const { data: shared, refresh: refreshShared } = useGatewayList(
+    mockShared,
+    sharedDocumentsRepo.list,
+  );
+  // Registered users, from the gateway's /api/users route (manager/admin only)
+  // — powers the owner filter, the "Usuários" tab and owner/publisher names.
+  const { data: users } = useGatewayList(mockUsers, usersRepo.list);
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [q, setQ] = useState("");
 
@@ -37,12 +55,26 @@ export function AdminPage() {
     return list;
   }, [documents, ownerFilter, q]);
 
+  // Folders + documents grouped by owner, for the read-only "Vaults" curation
+  // view. Any owner that has either a folder or a document gets a group.
+  const vaultGroups = useMemo(() => {
+    const byOwner = new Map<string, { folders: Folder[]; docs: Document[] }>();
+    const bucket = (ownerId: string) => {
+      let g = byOwner.get(ownerId);
+      if (!g) byOwner.set(ownerId, (g = { folders: [], docs: [] }));
+      return g;
+    };
+    for (const f of folders) bucket(f.owner_id).folders.push(f);
+    for (const d of documents) bucket(d.owner_id).docs.push(d);
+    return Array.from(byOwner.entries()).map(([ownerId, g]) => ({ ownerId, ...g }));
+  }, [folders, documents]);
+
   if (!allowed) return null;
 
   const roleLabel: Record<Role, string> = { rep: "Membro", manager: "Gestor", admin: "Admin" };
 
   return (
-    <div className="mx-auto max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-6xl px-4 py-6 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Administração</h1>
       <p className="mt-1 text-sm text-muted-foreground">Curadoria, visão geral e métricas.</p>
 
@@ -60,6 +92,7 @@ export function AdminPage() {
       <Tabs defaultValue="docs" className="mt-8">
         <TabsList>
           <TabsTrigger value="docs">Documentos</TabsTrigger>
+          <TabsTrigger value="vaults">Vaults</TabsTrigger>
           <TabsTrigger value="shared">Base Compartilhada</TabsTrigger>
           <TabsTrigger value="users">Usuários</TabsTrigger>
         </TabsList>
@@ -88,22 +121,27 @@ export function AdminPage() {
           <Card>
             <ul className="divide-y divide-border">
               {filteredDocs.map((d) => (
-                <li key={d.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <FileText className="h-4 w-4 text-muted-foreground" />
-                  <Link
-                    to={`/workspace/${d.id}`}
-                    className="flex-1 truncate text-sm hover:underline"
-                  >
-                    {d.title}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    {userMap.get(d.owner_id)?.name}
-                  </span>
+                <li key={d.id} className="flex items-start gap-3 px-4 py-2.5 sm:items-center">
+                  <FileText className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+                    <Link
+                      to={`/workspace/${d.id}`}
+                      className="min-w-0 truncate text-sm hover:underline sm:flex-1"
+                    >
+                      {d.title}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      {displayName(d.owner_name, userMap, d.owner_id)}
+                    </span>
+                  </div>
                   <ConfirmDialog
                     title={`Excluir "${d.title}"?`}
                     description="Exclusão permanente. Não pode ser desfeita."
                     onConfirm={() =>
-                      documentsRepo.remove(d.id).catch((err) => handleDomainError(err, navigate))
+                      documentsRepo
+                        .remove(d.id)
+                        .then(refreshDocuments)
+                        .catch((err) => handleDomainError(err, navigate))
                     }
                   >
                     <Button
@@ -123,24 +161,94 @@ export function AdminPage() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="vaults" className="mt-4">
+          <div className="space-y-4">
+            {vaultGroups.map((g) => (
+              <Card key={g.ownerId}>
+                <div className="flex items-center gap-2 border-b border-border px-4 py-2.5">
+                  {(() => {
+                    // A group has no single "item" of its own — borrow the
+                    // owner_name snapshot from any doc/folder it owns.
+                    const resolvedName = displayName(
+                      g.docs[0]?.owner_name ?? g.folders[0]?.owner_name,
+                      userMap,
+                      g.ownerId,
+                    );
+                    return (
+                      <>
+                        <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-primary-foreground">
+                          {(resolvedName ?? "—").slice(0, 1)}
+                        </div>
+                        <span className="text-sm font-medium">
+                          {resolvedName ?? "Dono desconhecido"}
+                        </span>
+                      </>
+                    );
+                  })()}
+                  <span className="text-xs text-muted-foreground">
+                    {g.folders.length} pastas · {g.docs.length} docs
+                  </span>
+                  <div className="ml-auto">
+                    <PublishManyButton
+                      docs={g.docs}
+                      label="Publicar vault inteiro"
+                      onPublished={refreshShared}
+                    />
+                  </div>
+                </div>
+                <div className="p-2">
+                  <FolderTree
+                    folders={g.folders}
+                    documents={g.docs}
+                    docAction={(doc) => (
+                      <PublishToSharedButton doc={doc} onPublished={refreshShared} compact />
+                    )}
+                    folderAction={(folder) => (
+                      <PublishManyButton
+                        docs={collectDocsInSubtree(folder.id, g.folders, g.docs)}
+                        label="Publicar pasta"
+                        onPublished={refreshShared}
+                        compact
+                      />
+                    )}
+                  />
+                </div>
+              </Card>
+            ))}
+            {vaultGroups.length === 0 && (
+              <Card>
+                <p className="p-4 text-center text-sm text-muted-foreground">
+                  Nenhum vault para exibir.
+                </p>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
         <TabsContent value="shared" className="mt-4">
           <Card>
             <ul className="divide-y divide-border">
               {shared.map((s) => (
-                <li key={s.id} className="flex items-center gap-3 px-4 py-2.5">
-                  <BookOpen className="h-4 w-4 text-muted-foreground" />
-                  <Link to={`/shared/${s.id}`} className="flex-1 truncate text-sm hover:underline">
-                    {s.title}
-                  </Link>
-                  <span className="text-xs text-muted-foreground">
-                    Por {userMap.get(s.published_by)?.name}
-                  </span>
+                <li key={s.id} className="flex items-start gap-3 px-4 py-2.5 sm:items-center">
+                  <BookOpen className="mt-0.5 h-4 w-4 shrink-0 text-muted-foreground sm:mt-0" />
+                  <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-3">
+                    <Link
+                      to={`/shared/${s.id}`}
+                      className="min-w-0 truncate text-sm hover:underline sm:flex-1"
+                    >
+                      {s.title}
+                    </Link>
+                    <span className="text-xs text-muted-foreground">
+                      Por {displayName(s.published_by_name, userMap, s.published_by)}
+                    </span>
+                  </div>
                   <ConfirmDialog
                     title={`Remover "${s.title}"?`}
                     description="Remove permanentemente da Base Compartilhada."
                     onConfirm={() =>
                       sharedDocumentsRepo
                         .remove(s.id)
+                        .then(refreshShared)
                         .catch((err) => handleDomainError(err, navigate))
                     }
                   >

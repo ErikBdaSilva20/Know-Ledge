@@ -1,8 +1,21 @@
 @import "tailwindcss" source(none);
 @source "../src";
 @import "tw-animate-css";
+@import "./styles/prose.css";
+@import "./styles/code-theme.css";
+
+@plugin "@tailwindcss/typography";
 
 @custom-variant dark (&:is(.dark *));
+
+/*
+ * Hover-to-reveal affordances (e.g. a row's action menu) are invisible on
+ * touch, which has no `:hover`. `no-touch:` scopes the hover-only treatment
+ * to hardware that has genuinely no coarse pointer at all — plain mouse/
+ * trackpad — so it doesn't reappear on any device with a touchscreen,
+ * including hybrids that also report `hover: hover` for a trackpad.
+ */
+@custom-variant no-touch (@media not all and (any-pointer: coarse));
 
 /*
  * Design system definition.

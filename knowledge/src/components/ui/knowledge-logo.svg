@@ -1,0 +1,634 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 700" fill="none" stroke="currentColor">
+  <defs>
+    <!-- Gradient for subtle depth effects -->
+    <linearGradient id="docGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.15"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.05"/>
+    </linearGradient>
+    <linearGradient id="lineGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0"/>
+      <stop offset="50%" stop-color="currentColor" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+    </linearGradient>
+    <linearGradient id="orbitalGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.3"/>
+      <stop offset="50%" stop-color="currentColor" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0.3"/>
+    </linearGradient>
+    <linearGradient id="arcGrad1" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0"/>
+      <stop offset="30%" stop-color="currentColor" stop-opacity="0.4"/>
+      <stop offset="70%" stop-color="currentColor" stop-opacity="0.4"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+    </linearGradient>
+    <radialGradient id="glowCenter" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.08"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="nodeGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="currentColor" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0"/>
+    </radialGradient>
+    <!-- Clip for document corner fold -->
+    <clipPath id="docClip">
+      <path d="M230 120 L370 120 L390 120 L390 140 L390 400 L210 400 L210 120 Z"/>
+    </clipPath>
+    <!-- Soft halo for the orbiting dots -->
+    <filter id="dotGlow" x="-150%" y="-150%" width="400%" height="400%">
+      <feGaussianBlur stdDeviation="2.5" result="blur"/>
+      <feMerge>
+        <feMergeNode in="blur"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- ============================================= -->
+  <!-- BACKGROUND AMBIENT GLOW                       -->
+  <!-- ============================================= -->
+  <circle cx="300" cy="270" r="220" fill="url(#glowCenter)" stroke="none"/>
+  <circle cx="300" cy="270" r="160" fill="url(#glowCenter)" stroke="none"/>
+
+  <!-- ============================================= -->
+  <!-- OUTER ORBITAL RINGS                           -->
+  <!-- ============================================= -->
+  <!-- Large outer ring -->
+  <ellipse cx="300" cy="270" rx="230" ry="230" stroke="url(#orbitalGrad)" stroke-width="1" fill="none" stroke-dasharray="4 8 12 8"/>
+  <!-- Second outer ring -->
+  <ellipse cx="300" cy="270" rx="240" ry="240" stroke="currentColor" stroke-width="0.3" fill="none" opacity="0.06" stroke-dasharray="1 3"/>
+  <!-- Medium ring -->
+  <ellipse cx="300" cy="270" rx="195" ry="195" stroke="currentColor" stroke-width="0.6" fill="none" opacity="0.14" stroke-dasharray="2 6"/>
+  <!-- Inner ring -->
+  <ellipse cx="300" cy="270" rx="165" ry="165" stroke="currentColor" stroke-width="0.7" fill="none" opacity="0.16" stroke-dasharray="1 4 8 4"/>
+
+  <!-- Orbiting nodes — two dots per ring (outer/medium/inner), each with its
+       own rotation direction + speed and its own independent blink cadence,
+       so they drift instead of moving in lockstep. currentColor + the
+       #dotGlow filter (defs) keep them on-theme with a soft halo. Pure SMIL,
+       no external CSS/JS needed for the raw-injected SVG to animate. -->
+  <g fill="currentColor" stroke="none" filter="url(#dotGlow)">
+    <!-- Outer ring (r=230) — slowest, biggest halo -->
+    <g>
+      <circle cx="530" cy="270" r="4.5">
+        <animate attributeName="opacity" values="0.15;0.75;0.15" dur="4s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="0 300 270" to="360 300 270" dur="24s" repeatCount="indefinite"/>
+    </g>
+    <g>
+      <circle cx="100.81" cy="385" r="4.5">
+        <animate attributeName="opacity" values="0.15;0.75;0.15" dur="5.5s" begin="-2s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="360 300 270" to="0 300 270" dur="30s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- Medium ring (r=195) -->
+    <g>
+      <circle cx="397.5" cy="438.9" r="4">
+        <animate attributeName="opacity" values="0.12;0.7;0.12" dur="3.2s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="0 300 270" to="360 300 270" dur="17s" repeatCount="indefinite"/>
+    </g>
+    <g>
+      <circle cx="333.85" cy="77.96" r="4">
+        <animate attributeName="opacity" values="0.12;0.7;0.12" dur="4.8s" begin="-1.5s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="360 300 270" to="0 300 270" dur="21s" repeatCount="indefinite"/>
+    </g>
+
+    <!-- Inner ring (r=165) — fastest, smallest halo -->
+    <g>
+      <circle cx="455.05" cy="326.43" r="3.5">
+        <animate attributeName="opacity" values="0.1;0.65;0.1" dur="2.4s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="0 300 270" to="360 300 270" dur="11s" repeatCount="indefinite"/>
+    </g>
+    <g>
+      <circle cx="144.95" cy="213.57" r="3.5">
+        <animate attributeName="opacity" values="0.1;0.65;0.1" dur="3.1s" begin="-0.8s" repeatCount="indefinite"/>
+      </circle>
+      <animateTransform attributeName="transform" type="rotate" from="360 300 270" to="0 300 270" dur="14s" repeatCount="indefinite"/>
+    </g>
+  </g>
+
+  <!-- Tight inner ring -->
+  <ellipse cx="300" cy="270" rx="135" ry="135" stroke="currentColor" stroke-width="0.4" fill="none" opacity="0.08" stroke-dasharray="3 8"/>
+
+  <!-- Tilted orbital ellipses -->
+  <g transform="rotate(-25, 300, 270)">
+    <ellipse cx="300" cy="270" rx="210" ry="120" stroke="currentColor" stroke-width="0.7" fill="none" opacity="0.12" stroke-dasharray="6 10"/>
+  </g>
+  <g transform="rotate(30, 300, 270)">
+    <ellipse cx="300" cy="270" rx="200" ry="100" stroke="currentColor" stroke-width="0.6" fill="none" opacity="0.1" stroke-dasharray="3 12"/>
+  </g>
+  <g transform="rotate(65, 300, 270)">
+    <ellipse cx="300" cy="270" rx="215" ry="90" stroke="currentColor" stroke-width="0.5" fill="none" opacity="0.08" stroke-dasharray="2 14"/>
+  </g>
+  <g transform="rotate(-55, 300, 270)">
+    <ellipse cx="300" cy="270" rx="180" ry="70" stroke="currentColor" stroke-width="0.4" fill="none" opacity="0.06" stroke-dasharray="4 16"/>
+  </g>
+  <g transform="rotate(10, 300, 270)">
+    <ellipse cx="300" cy="270" rx="245" ry="140" stroke="currentColor" stroke-width="0.3" fill="none" opacity="0.05" stroke-dasharray="2 10"/>
+  </g>
+
+  <!-- Decorative arcs -->
+  <path d="M120 180 A200 200 0 0 1 250 80" stroke="url(#arcGrad1)" stroke-width="1.4" fill="none"/>
+  <path d="M480 180 A200 200 0 0 0 350 80" stroke="url(#arcGrad1)" stroke-width="1.4" fill="none"/>
+  <path d="M100 350 A250 250 0 0 0 200 470" stroke="url(#arcGrad1)" stroke-width="1" fill="none"/>
+  <path d="M500 350 A250 250 0 0 1 400 470" stroke="url(#arcGrad1)" stroke-width="1" fill="none"/>
+  <!-- Extra arcs -->
+  <path d="M90 230 A180 180 0 0 1 180 100" stroke="url(#arcGrad1)" stroke-width="0.6" fill="none"/>
+  <path d="M510 230 A180 180 0 0 0 420 100" stroke="url(#arcGrad1)" stroke-width="0.6" fill="none"/>
+  <path d="M150 450 A200 200 0 0 0 90 310" stroke="url(#arcGrad1)" stroke-width="0.5" fill="none"/>
+  <path d="M450 450 A200 200 0 0 1 510 310" stroke="url(#arcGrad1)" stroke-width="0.5" fill="none"/>
+
+  <!-- ============================================= -->
+  <!-- KNOWLEDGE GRAPH NETWORK - CONNECTION LINES    -->
+  <!-- ============================================= -->
+  <g stroke="currentColor" opacity="0.2" stroke-width="0.8">
+    <!-- Top-left cluster connections -->
+    <line x1="130" y1="150" x2="175" y2="195"/>
+    <line x1="130" y1="150" x2="100" y2="200"/>
+    <line x1="100" y1="200" x2="140" y2="250"/>
+    <line x1="175" y1="195" x2="140" y2="250"/>
+    <line x1="175" y1="195" x2="210" y2="180"/>
+    <line x1="140" y1="250" x2="160" y2="310"/>
+    <line x1="130" y1="150" x2="170" y2="120"/>
+
+    <!-- Top-right cluster connections -->
+    <line x1="470" y1="150" x2="425" y2="195"/>
+    <line x1="470" y1="150" x2="500" y2="200"/>
+    <line x1="500" y1="200" x2="460" y2="250"/>
+    <line x1="425" y1="195" x2="460" y2="250"/>
+    <line x1="425" y1="195" x2="390" y2="180"/>
+    <line x1="460" y1="250" x2="440" y2="310"/>
+    <line x1="470" y1="150" x2="430" y2="120"/>
+
+    <!-- Bottom-left connections -->
+    <line x1="120" y1="380" x2="160" y2="340"/>
+    <line x1="120" y1="380" x2="160" y2="420"/>
+    <line x1="160" y1="340" x2="160" y2="310"/>
+    <line x1="160" y1="420" x2="200" y2="440"/>
+    <line x1="120" y1="380" x2="90" y2="340"/>
+    <line x1="90" y1="340" x2="100" y2="200"/>
+
+    <!-- Bottom-right connections -->
+    <line x1="480" y1="380" x2="440" y2="340"/>
+    <line x1="480" y1="380" x2="440" y2="420"/>
+    <line x1="440" y1="340" x2="440" y2="310"/>
+    <line x1="440" y1="420" x2="400" y2="440"/>
+    <line x1="480" y1="380" x2="510" y2="340"/>
+    <line x1="510" y1="340" x2="500" y2="200"/>
+
+    <!-- Top connections -->
+    <line x1="170" y1="120" x2="250" y2="90"/>
+    <line x1="250" y1="90" x2="300" y2="70"/>
+    <line x1="300" y1="70" x2="350" y2="90"/>
+    <line x1="350" y1="90" x2="430" y2="120"/>
+    <line x1="250" y1="90" x2="210" y2="180"/>
+    <line x1="350" y1="90" x2="390" y2="180"/>
+
+    <!-- Bottom connections -->
+    <line x1="200" y1="440" x2="250" y2="460"/>
+    <line x1="250" y1="460" x2="300" y2="470"/>
+    <line x1="300" y1="470" x2="350" y2="460"/>
+    <line x1="350" y1="460" x2="400" y2="440"/>
+
+    <!-- Cross connections to center -->
+    <line x1="210" y1="180" x2="250" y2="200"/>
+    <line x1="390" y1="180" x2="350" y2="200"/>
+    <line x1="160" y1="310" x2="210" y2="300"/>
+    <line x1="440" y1="310" x2="390" y2="300"/>
+    <line x1="200" y1="440" x2="240" y2="410"/>
+    <line x1="400" y1="440" x2="360" y2="410"/>
+  </g>
+
+  <!-- Secondary finer connections -->
+  <g stroke="currentColor" opacity="0.1" stroke-width="0.5">
+    <line x1="80" y1="270" x2="140" y2="250"/>
+    <line x1="520" y1="270" x2="460" y2="250"/>
+    <line x1="80" y1="270" x2="90" y2="340"/>
+    <line x1="520" y1="270" x2="510" y2="340"/>
+    <line x1="300" y1="70" x2="300" y2="120"/>
+    <line x1="300" y1="470" x2="300" y2="430"/>
+    <line x1="170" y1="120" x2="130" y2="150"/>
+    <line x1="430" y1="120" x2="470" y2="150"/>
+    <line x1="250" y1="460" x2="200" y2="440"/>
+    <line x1="350" y1="460" x2="400" y2="440"/>
+  </g>
+
+  <!-- Extra deep network connections -->
+  <g stroke="currentColor" opacity="0.14" stroke-width="0.6">
+    <!-- Diagonal cross-links -->
+    <line x1="130" y1="150" x2="250" y2="90"/>
+    <line x1="470" y1="150" x2="350" y2="90"/>
+    <line x1="120" y1="380" x2="200" y2="440"/>
+    <line x1="480" y1="380" x2="400" y2="440"/>
+    <!-- Mid-layer mesh -->
+    <line x1="175" y1="195" x2="100" y2="200"/>
+    <line x1="425" y1="195" x2="500" y2="200"/>
+    <line x1="140" y1="250" x2="90" y2="340"/>
+    <line x1="460" y1="250" x2="510" y2="340"/>
+    <line x1="160" y1="420" x2="120" y2="380"/>
+    <line x1="440" y1="420" x2="480" y2="380"/>
+    <!-- Far outer connections -->
+    <line x1="55" y1="190" x2="100" y2="200"/>
+    <line x1="545" y1="190" x2="500" y2="200"/>
+    <line x1="55" y1="190" x2="80" y2="270"/>
+    <line x1="545" y1="190" x2="520" y2="270"/>
+    <line x1="55" y1="370" x2="90" y2="340"/>
+    <line x1="545" y1="370" x2="510" y2="340"/>
+    <line x1="55" y1="370" x2="120" y2="380"/>
+    <line x1="545" y1="370" x2="480" y2="380"/>
+    <!-- Vertical spine -->
+    <line x1="300" y1="70" x2="250" y2="90"/>
+    <line x1="300" y1="70" x2="350" y2="90"/>
+    <line x1="300" y1="470" x2="250" y2="460"/>
+    <line x1="300" y1="470" x2="350" y2="460"/>
+    <!-- Triangle sub-networks -->
+    <line x1="100" y1="200" x2="175" y2="195"/>
+    <line x1="500" y1="200" x2="425" y2="195"/>
+    <line x1="160" y1="340" x2="90" y2="340"/>
+    <line x1="440" y1="340" x2="510" y2="340"/>
+    <line x1="160" y1="340" x2="160" y2="420"/>
+    <line x1="440" y1="340" x2="440" y2="420"/>
+  </g>
+
+  <!-- Tertiary whisper connections -->
+  <g stroke="currentColor" opacity="0.07" stroke-width="0.4">
+    <line x1="55" y1="190" x2="130" y2="150"/>
+    <line x1="545" y1="190" x2="470" y2="150"/>
+    <line x1="170" y1="120" x2="250" y2="90"/>
+    <line x1="430" y1="120" x2="350" y2="90"/>
+    <line x1="200" y1="440" x2="250" y2="460"/>
+    <line x1="400" y1="440" x2="350" y2="460"/>
+    <line x1="55" y1="370" x2="55" y2="190"/>
+    <line x1="545" y1="370" x2="545" y2="190"/>
+    <line x1="80" y1="270" x2="55" y2="370"/>
+    <line x1="520" y1="270" x2="545" y2="370"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- KNOWLEDGE GRAPH NODES                         -->
+  <!-- ============================================= -->
+  <!-- Large nodes (primary) -->
+  <g fill="currentColor" stroke="none">
+    <circle cx="300" cy="70" r="5" opacity="0.7"/>
+    <circle cx="300" cy="470" r="5" opacity="0.5"/>
+    <circle cx="80" cy="270" r="4.5" opacity="0.5"/>
+    <circle cx="520" cy="270" r="4.5" opacity="0.5"/>
+  </g>
+
+  <!-- Medium nodes -->
+  <g fill="currentColor" stroke="none" opacity="0.6">
+    <circle cx="130" cy="150" r="4"/>
+    <circle cx="470" cy="150" r="4"/>
+    <circle cx="120" cy="380" r="4"/>
+    <circle cx="480" cy="380" r="4"/>
+    <circle cx="250" cy="90" r="3.5"/>
+    <circle cx="350" cy="90" r="3.5"/>
+    <circle cx="250" cy="460" r="3.5"/>
+    <circle cx="350" cy="460" r="3.5"/>
+  </g>
+
+  <!-- Small nodes -->
+  <g fill="currentColor" stroke="none" opacity="0.45">
+    <circle cx="175" cy="195" r="3"/>
+    <circle cx="425" cy="195" r="3"/>
+    <circle cx="100" cy="200" r="3"/>
+    <circle cx="500" cy="200" r="3"/>
+    <circle cx="140" cy="250" r="3"/>
+    <circle cx="460" cy="250" r="3"/>
+    <circle cx="160" cy="310" r="3"/>
+    <circle cx="440" cy="310" r="3"/>
+    <circle cx="160" cy="340" r="2.5"/>
+    <circle cx="440" cy="340" r="2.5"/>
+    <circle cx="160" cy="420" r="2.5"/>
+    <circle cx="440" cy="420" r="2.5"/>
+    <circle cx="200" cy="440" r="2.5"/>
+    <circle cx="400" cy="440" r="2.5"/>
+    <circle cx="210" cy="180" r="2.5"/>
+    <circle cx="390" cy="180" r="2.5"/>
+    <circle cx="170" cy="120" r="2.5"/>
+    <circle cx="430" cy="120" r="2.5"/>
+    <circle cx="90" cy="340" r="2.5"/>
+    <circle cx="510" cy="340" r="2.5"/>
+  </g>
+
+  <!-- Tiny accent nodes -->
+  <g fill="currentColor" stroke="none" opacity="0.25">
+    <circle cx="110" cy="170" r="1.5"/>
+    <circle cx="490" cy="170" r="1.5"/>
+    <circle cx="145" cy="130" r="1.5"/>
+    <circle cx="455" cy="130" r="1.5"/>
+    <circle cx="75" cy="310" r="1.5"/>
+    <circle cx="525" cy="310" r="1.5"/>
+    <circle cx="110" cy="420" r="1.5"/>
+    <circle cx="490" cy="420" r="1.5"/>
+    <circle cx="220" cy="70" r="1.5"/>
+    <circle cx="380" cy="70" r="1.5"/>
+    <circle cx="230" cy="475" r="1.5"/>
+    <circle cx="370" cy="475" r="1.5"/>
+    <circle cx="190" cy="450" r="1.5"/>
+    <circle cx="410" cy="450" r="1.5"/>
+    <circle cx="65" cy="240" r="1.2"/>
+    <circle cx="535" cy="240" r="1.2"/>
+    <circle cx="65" cy="300" r="1.2"/>
+    <circle cx="535" cy="300" r="1.2"/>
+  </g>
+
+  <!-- Far outer satellite nodes -->
+  <g fill="currentColor" stroke="none" opacity="0.4">
+    <circle cx="55" cy="190" r="3.5"/>
+    <circle cx="545" cy="190" r="3.5"/>
+    <circle cx="55" cy="370" r="3.5"/>
+    <circle cx="545" cy="370" r="3.5"/>
+  </g>
+
+  <!-- Ring-style nodes (hollow) for variety -->
+  <g fill="none" stroke="currentColor" stroke-width="1" opacity="0.2">
+    <circle cx="130" cy="150" r="8"/>
+    <circle cx="470" cy="150" r="8"/>
+    <circle cx="120" cy="380" r="8"/>
+    <circle cx="480" cy="380" r="8"/>
+    <circle cx="300" cy="70" r="10"/>
+    <circle cx="300" cy="470" r="9"/>
+  </g>
+
+  <!-- Double-ring accent on key nodes -->
+  <g fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.1">
+    <circle cx="130" cy="150" r="13"/>
+    <circle cx="470" cy="150" r="13"/>
+    <circle cx="300" cy="70" r="16"/>
+  </g>
+
+  <!-- Node glow halos on primary nodes -->
+  <circle cx="300" cy="70" r="18" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="300" cy="470" r="16" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="80" cy="270" r="16" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="520" cy="270" r="16" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="130" cy="150" r="14" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="470" cy="150" r="14" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="55" cy="190" r="12" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="545" cy="190" r="12" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="55" cy="370" r="12" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="545" cy="370" r="12" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="120" cy="380" r="12" fill="url(#nodeGlow)" stroke="none"/>
+  <circle cx="480" cy="380" r="12" fill="url(#nodeGlow)" stroke="none"/>
+
+  <!-- ============================================= -->
+  <!-- CENTRAL DOCUMENT ICON                         -->
+  <!-- ============================================= -->
+  <!-- Document shadow/depth -->
+  <g transform="translate(3, 3)" opacity="0.06">
+    <path d="M248 155 L348 155 L368 175 L368 415 L228 415 L228 155 Z" fill="currentColor" stroke="none"/>
+  </g>
+
+  <!-- Back page (offset) -->
+  <path d="M238 148 L338 148 L358 168 L358 408 L218 408 L218 148 Z" 
+        fill="url(#docGrad)" stroke="currentColor" stroke-width="0.8" opacity="0.3"/>
+
+  <!-- Middle page (offset) -->
+  <path d="M243 152 L343 152 L363 172 L363 412 L223 412 L223 152 Z" 
+        fill="url(#docGrad)" stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+
+  <!-- Main document body -->
+  <path d="M248 158 L348 158 L368 178 L368 418 L228 418 L228 158 Z" 
+        fill="url(#docGrad)" stroke="currentColor" stroke-width="1.5"/>
+
+  <!-- Corner fold -->
+  <path d="M348 158 L348 178 L368 178" 
+        fill="currentColor" fill-opacity="0.08" stroke="currentColor" stroke-width="1.2"/>
+  <line x1="348" y1="158" x2="368" y2="178" stroke="currentColor" stroke-width="0.5" opacity="0.3"/>
+
+  <!-- Document text lines -->
+  <g stroke="currentColor" stroke-width="1.2" opacity="0.35" stroke-linecap="round">
+    <line x1="248" y1="200" x2="340" y2="200"/>
+    <line x1="248" y1="215" x2="355" y2="215"/>
+    <line x1="248" y1="230" x2="350" y2="230"/>
+    <line x1="248" y1="245" x2="320" y2="245"/>
+    
+    <line x1="248" y1="270" x2="355" y2="270"/>
+    <line x1="248" y1="285" x2="348" y2="285"/>
+    <line x1="248" y1="300" x2="335" y2="300"/>
+    <line x1="248" y1="315" x2="355" y2="315"/>
+    <line x1="248" y1="330" x2="310" y2="330"/>
+    
+    <line x1="248" y1="355" x2="350" y2="355"/>
+    <line x1="248" y1="370" x2="355" y2="370"/>
+    <line x1="248" y1="385" x2="340" y2="385"/>
+    <line x1="248" y1="400" x2="295" y2="400"/>
+  </g>
+
+  <!-- Document header accent -->
+  <rect x="248" y="185" width="40" height="3" rx="1.5" fill="currentColor" opacity="0.5" stroke="none"/>
+
+  <!-- Small bookmark/tab on document edge -->
+  <path d="M228 220 L218 220 L218 250 L228 245" fill="currentColor" fill-opacity="0.15" stroke="currentColor" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- Magnifying glass detail on document -->
+  <g transform="translate(340, 380)" opacity="0.3">
+    <circle cx="0" cy="0" r="12" stroke="currentColor" stroke-width="1.5" fill="none"/>
+    <line x1="8" y1="8" x2="18" y2="18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+    <circle cx="0" cy="0" r="7" stroke="currentColor" stroke-width="0.5" fill="none" opacity="0.4"/>
+  </g>
+
+  <!-- Visual bridge connections from inside doc to graph network -->
+  <g stroke="currentColor" stroke-width="0.7" opacity="0.18" stroke-dasharray="2 3">
+    <!-- Line from document header to top node -->
+    <path d="M290 185 L290 120 L300 70" fill="none"/>
+    <!-- Line from document left edge to left node -->
+    <path d="M228 280 L180 280 L160 310" fill="none"/>
+    <!-- Line from document right edge to right node -->
+    <path d="M368 330 L400 330 L440 310" fill="none"/>
+    <!-- Line from magnifying glass to bottom node -->
+    <path d="M358 398 L375 425 L350 460" fill="none"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- INTERCONNECTED LINK SYMBOLS ON DOCUMENT       -->
+  <!-- ============================================= -->
+  <!-- Chain link icon top-right of doc -->
+  <g transform="translate(355, 195)" opacity="0.35" stroke-width="1.2">
+    <path d="M-2 -5 A5 5 0 0 1 8 -5 L6 -3 A3 3 0 0 0 0 -3 Z" stroke="currentColor" fill="none"/>
+    <path d="M0 5 A5 5 0 0 0 10 5 L8 3 A3 3 0 0 1 2 3 Z" stroke="currentColor" fill="none"/>
+    <line x1="4" y1="-2" x2="4" y2="2" stroke="currentColor"/>
+  </g>
+
+  <!-- Mini knowledge graph inside document -->
+  <g opacity="0.2" stroke="currentColor" stroke-width="0.8">
+    <line x1="260" y1="260" x2="275" y2="252"/>
+    <line x1="275" y1="252" x2="290" y2="258"/>
+    <line x1="290" y1="258" x2="280" y2="248"/>
+    <circle cx="260" cy="260" r="2" fill="currentColor" stroke="none"/>
+    <circle cx="275" cy="252" r="1.5" fill="currentColor" stroke="none"/>
+    <circle cx="290" cy="258" r="2" fill="currentColor" stroke="none"/>
+    <circle cx="280" cy="248" r="1.5" fill="currentColor" stroke="none"/>
+  </g>
+
+  <!-- Checkbox details on doc -->
+  <g opacity="0.25" stroke="currentColor" stroke-width="1" fill="none">
+    <rect x="250" y="350" width="6" height="6" rx="1"/>
+    <path d="M251.5 353.5 L253 355 L255.5 351.5" stroke-width="0.8"/>
+    <rect x="250" y="365" width="6" height="6" rx="1"/>
+    <rect x="250" y="380" width="6" height="6" rx="1"/>
+    <path d="M251.5 383.5 L253 385 L255.5 381.5" stroke-width="0.8"/>
+  </g>
+
+  <!-- Pen/edit icon near doc -->
+  <g transform="translate(220, 400)" opacity="0.2" stroke="currentColor" stroke-width="1">
+    <path d="M0 0 L-8 8 L-10 14 L-4 12 L4 4 Z" fill="none"/>
+    <line x1="-6" y1="6" x2="-2" y2="2"/>
+  </g>
+
+  <!-- Tag/label accent on doc -->
+  <g transform="translate(370, 250)" opacity="0.2">
+    <path d="M0 0 L12 0 L16 6 L12 12 L0 12 Z" stroke="currentColor" stroke-width="0.8" fill="none"/>
+    <circle cx="13" cy="6" r="1.5" fill="currentColor" stroke="none"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- GEOMETRIC ACCENT PATTERNS                     -->
+  <!-- ============================================= -->
+  <!-- Hexagonal pattern top-left -->
+  <g transform="translate(155, 95)" stroke="currentColor" stroke-width="0.5" fill="none" opacity="0.15">
+    <polygon points="0,-10 8.66,-5 8.66,5 0,10 -8.66,5 -8.66,-5"/>
+    <polygon points="17.32,-10 25.98,-5 25.98,5 17.32,10 8.66,5 8.66,-5"/>
+    <polygon points="8.66,5 17.32,10 17.32,20 8.66,25 0,20 0,10"/>
+  </g>
+
+  <!-- Hexagonal pattern bottom-right -->
+  <g transform="translate(420, 430)" stroke="currentColor" stroke-width="0.5" fill="none" opacity="0.15">
+    <polygon points="0,-10 8.66,-5 8.66,5 0,10 -8.66,5 -8.66,-5"/>
+    <polygon points="17.32,-10 25.98,-5 25.98,5 17.32,10 8.66,5 8.66,-5"/>
+    <polygon points="8.66,5 17.32,10 17.32,20 8.66,25 0,20 0,10"/>
+  </g>
+
+  <!-- Diamond accents -->
+  <g fill="currentColor" stroke="none" opacity="0.15">
+    <rect x="550" y="150" width="6" height="6" rx="1" transform="rotate(45, 553, 153)"/>
+    <rect x="40" y="420" width="6" height="6" rx="1" transform="rotate(45, 43, 423)"/>
+    <rect x="550" y="390" width="5" height="5" rx="1" transform="rotate(45, 552.5, 392.5)"/>
+    <rect x="40" y="130" width="5" height="5" rx="1" transform="rotate(45, 42.5, 132.5)"/>
+  </g>
+
+  <!-- Cross/plus accents -->
+  <g stroke="currentColor" stroke-width="0.8" opacity="0.2" stroke-linecap="round">
+    <line x1="555" y1="225" x2="555" y2="235"/>
+    <line x1="550" y1="230" x2="560" y2="230"/>
+    <line x1="40" y1="280" x2="40" y2="290"/>
+    <line x1="35" y1="285" x2="45" y2="285"/>
+    <line x1="300" y1="495" x2="300" y2="505"/>
+    <line x1="295" y1="500" x2="305" y2="500"/>
+  </g>
+
+  <!-- Scattered dots pattern -->
+  <g fill="currentColor" stroke="none" opacity="0.12">
+    <circle cx="550" cy="270" r="1.2"/>
+    <circle cx="556" cy="280" r="0.8"/>
+    <circle cx="545" cy="260" r="1"/>
+    <circle cx="50" cy="260" r="1.2"/>
+    <circle cx="44" cy="250" r="0.8"/>
+    <circle cx="56" cy="270" r="1"/>
+    <circle cx="280" cy="50" r="1"/>
+    <circle cx="320" cy="55" r="0.8"/>
+    <circle cx="270" cy="55" r="0.8"/>
+    <circle cx="280" cy="490" r="1"/>
+    <circle cx="320" cy="485" r="0.8"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- CIRCUIT/TECH LINES                            -->
+  <!-- ============================================= -->
+  <g stroke="currentColor" stroke-width="0.6" opacity="0.12" fill="none">
+    <!-- Left circuit -->
+    <path d="M80 270 L60 270 L60 230 L80 230"/>
+    <path d="M80 270 L60 270 L60 310 L80 310"/>
+    <rect x="55" y="227" width="10" height="6" rx="1"/>
+    <rect x="55" y="307" width="10" height="6" rx="1"/>
+    
+    <!-- Right circuit -->
+    <path d="M520 270 L540 270 L540 230 L520 230"/>
+    <path d="M520 270 L540 270 L540 310 L520 310"/>
+    <rect x="535" y="227" width="10" height="6" rx="1"/>
+    <rect x="535" y="307" width="10" height="6" rx="1"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- DECORATIVE CORNER BRACKETS                    -->
+  <!-- ============================================= -->
+  <g stroke="currentColor" stroke-width="1" opacity="0.12" fill="none" stroke-linecap="round">
+    <!-- Top-left bracket -->
+    <path d="M35 60 L35 40 L55 40"/>
+    <!-- Top-right bracket -->
+    <path d="M565 60 L565 40 L545 40"/>
+    <!-- Bottom-left bracket -->
+    <path d="M35 520 L35 540 L55 540"/>
+    <!-- Bottom-right bracket -->
+    <path d="M565 520 L565 540 L545 540"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- HORIZONTAL DIVIDER ABOVE TEXT                 -->
+  <!-- ============================================= -->
+  <line x1="150" y1="540" x2="450" y2="540" stroke="url(#lineGrad)" stroke-width="1"/>
+  <!-- Divider accent dots -->
+  <circle cx="150" cy="540" r="2" fill="currentColor" opacity="0.3" stroke="none"/>
+  <circle cx="450" cy="540" r="2" fill="currentColor" opacity="0.3" stroke="none"/>
+  <circle cx="300" cy="540" r="2.5" fill="currentColor" opacity="0.4" stroke="none"/>
+
+  <!-- Small decorative lines flanking divider -->
+  <line x1="130" y1="537" x2="145" y2="540" stroke="currentColor" stroke-width="0.5" opacity="0.2"/>
+  <line x1="130" y1="543" x2="145" y2="540" stroke="currentColor" stroke-width="0.5" opacity="0.2"/>
+  <line x1="470" y1="537" x2="455" y2="540" stroke="currentColor" stroke-width="0.5" opacity="0.2"/>
+  <line x1="470" y1="543" x2="455" y2="540" stroke="currentColor" stroke-width="0.5" opacity="0.2"/>
+
+  <!-- ============================================= -->
+  <!-- BRAND TEXT: KnowLedge                         -->
+  <!-- ============================================= -->
+  <text x="300" y="595" text-anchor="middle" 
+        font-family="'Nunito', 'Quicksand', 'Poppins', 'Rounded Mplus 1c', sans-serif" 
+        font-size="54" font-weight="700" letter-spacing="12"
+        fill="currentColor" stroke="none" opacity="0.9">
+    KNOWLEDGE
+  </text>
+
+  <!-- Subtitle -->
+  <text x="300" y="628" text-anchor="middle" 
+        font-family="'Nunito', 'Quicksand', 'Poppins', 'Rounded Mplus 1c', sans-serif" 
+        font-size="13" font-weight="600" letter-spacing="7"
+        fill="currentColor" stroke="none" opacity="0.45">
+    CONNECTED THINKING
+  </text>
+
+  <!-- Underline accent below text -->
+  <line x1="235" y1="640" x2="365" y2="640" stroke="url(#lineGrad)" stroke-width="0.6"/>
+
+  <!-- Bottom decorative dots -->
+  <g fill="currentColor" stroke="none" opacity="0.15">
+    <circle cx="270" cy="660" r="1.2"/>
+    <circle cx="285" cy="660" r="1.2"/>
+    <circle cx="300" cy="660" r="1.8"/>
+    <circle cx="315" cy="660" r="1.2"/>
+    <circle cx="330" cy="660" r="1.2"/>
+  </g>
+
+  <!-- ============================================= -->
+  <!-- FLOATING PARTICLE DUST                        -->
+  <!-- ============================================= -->
+  <g fill="currentColor" stroke="none" opacity="0.08">
+    <circle cx="195" cy="135" r="1"/>
+    <circle cx="405" cy="135" r="1"/>
+    <circle cx="150" cy="275" r="0.8"/>
+    <circle cx="450" cy="275" r="0.8"/>
+    <circle cx="200" cy="350" r="0.8"/>
+    <circle cx="400" cy="350" r="0.8"/>
+    <circle cx="260" cy="480" r="0.8"/>
+    <circle cx="340" cy="480" r="0.8"/>
+    <circle cx="180" cy="470" r="0.6"/>
+    <circle cx="420" cy="470" r="0.6"/>
+    <circle cx="100" cy="120" r="0.6"/>
+    <circle cx="500" cy="120" r="0.6"/>
+    <circle cx="100" cy="440" r="0.6"/>
+    <circle cx="500" cy="440" r="0.6"/>
+  </g>
+</svg>

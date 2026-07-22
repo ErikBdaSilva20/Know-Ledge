@@ -26,13 +26,24 @@ const expectedUpdatedAt = z.string().datetime().optional();
 // dropped. Column order for INSERT/UPDATE is derived from these shapes in
 // routes/data.ts, so this file is the single source of truth for "what a
 // client may send" per table and per operation.
+// owner_name / published_by_name: a display-name snapshot the client stamps
+// from its own session at create time (see the migration's comment on
+// folders.owner_name for why this exists — no generic route can list `user`
+// rows). Never accepted on update — a display name is set once, at creation.
 export const SCHEMAS = {
   folders: {
-    insert: z.object({ parent_id: uuid.nullable(), name }).strict(),
+    insert: z.object({ parent_id: uuid.nullable(), name, owner_name: name.optional() }).strict(),
     update: z.object({ parent_id: uuid.nullable().optional(), name: name.optional() }).strict(),
   },
   documents: {
-    insert: z.object({ folder_id: uuid.nullable(), title, content: content.optional() }).strict(),
+    insert: z
+      .object({
+        folder_id: uuid.nullable(),
+        title,
+        content: content.optional(),
+        owner_name: name.optional(),
+      })
+      .strict(),
     update: z
       .object({
         folder_id: uuid.nullable().optional(),
@@ -43,7 +54,14 @@ export const SCHEMAS = {
       .strict(),
   },
   shared_documents: {
-    insert: z.object({ title, content, source_document_id: uuid.nullable() }).strict(),
+    insert: z
+      .object({
+        title,
+        content,
+        source_document_id: uuid.nullable(),
+        published_by_name: name.optional(),
+      })
+      .strict(),
     update: z
       .object({
         title: title.optional(),

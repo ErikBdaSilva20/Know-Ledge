@@ -1,28 +1,50 @@
+import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
+import { PublishToSharedButton } from "@/components/PublishToSharedButton";
 import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
-import { Star, Upload, Trash2 } from "lucide-react";
+import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
-import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
-import { syncSharedRefs } from "@/lib/syncRefs";
+import { isGatewayMode } from "@/lib/data/dataSource";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
-import { toast } from "sonner";
+import type { Document } from "@/lib/types";
 
 export function WorkspaceDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const doc = useDb((s) => s.documents.find((d) => d.id === docId));
-  const owner = useDb((s) => (doc ? s.users.find((u) => u.id === doc.owner_id) : null));
-  const favorite = useDb((s) =>
-    s.favorites.find(
-      (f) => f.owner_id === user?.id && f.document_scope === "personal" && f.document_id === docId,
-    ),
+  const mockDoc = useDb((s) => s.documents.find((d) => d.id === docId));
+
+  // Same gateway-mode gap as Editor.tsx: useDb never repopulates from the
+  // backend, so this page's own `doc` (used for the owner check, the delete
+  // confirm title, and the "publish" payload) was always undefined too.
+  const [gatewayDoc, setGatewayDoc] = useState<Document | undefined>(undefined);
+  useEffect(() => {
+    if (!isGatewayMode()) return;
+    let cancelled = false;
+    setGatewayDoc(undefined);
+    documentsRepo.list().then((docs) => {
+      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === docId));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [docId]);
+
+  const doc = isGatewayMode() ? gatewayDoc : mockDoc;
+  const mockFavorites = useDb((s) => s.favorites);
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
+    mockFavorites,
+    favoritesRepo.list,
+  );
+  const favorite = allFavorites.find(
+    (f) => f.owner_id === user?.id && f.document_scope === "personal" && f.document_id === docId,
   );
 
   const isOwner = doc?.owner_id === user?.id;
@@ -49,9 +71,9 @@ export function WorkspaceDoc() {
           >
             ← Explorer
           </Link>
-          {owner && (
+          {doc.owner_name && (
             <span className="truncate">
-              Dono: <span className="font-medium text-foreground">{owner.name}</span>
+              Dono: <span className="font-medium text-foreground">{doc.owner_name}</span>
             </span>
           )}
           <span className="flex flex-wrap items-center gap-1 sm:ml-auto">
@@ -67,6 +89,7 @@ export function WorkspaceDoc() {
                       document_scope: "personal",
                       document_id: docId,
                     });
+                  await refreshFavorites();
                 } catch (err) {
                   handleDomainError(err, navigate);
                 }
@@ -77,29 +100,7 @@ export function WorkspaceDoc() {
               />
               {favorite ? "Favorito" : "Favoritar"}
             </Button>
-            {can("publishShared") && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={async () => {
-                  try {
-                    const s = await sharedDocumentsRepo.create({
-                      title: doc.title,
-                      content: doc.content,
-                      source_document_id: doc.id,
-                      published_by: user!.id,
-                    });
-                    syncSharedRefs(s.id);
-                    toast.success("Publicado na Base Compartilhada");
-                  } catch (err) {
-                    handleDomainError(err, navigate);
-                  }
-                }}
-              >
-                <Upload className="mr-1 h-3.5 w-3.5" />
-                Publicar na Base Compartilhada
-              </Button>
-            )}
+            <PublishToSharedButton doc={doc} />
             {canEdit && (
               <ConfirmDialog
                 title={`Excluir "${doc.title || "Sem título"}"?`}

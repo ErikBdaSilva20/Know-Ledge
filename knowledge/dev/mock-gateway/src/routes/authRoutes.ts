@@ -11,6 +11,7 @@ import {
   verifyPassword,
 } from "../auth.js";
 import { SESSION_COOKIE } from "../middleware.js";
+import { isValidEmail, passwordError } from "../validation.js";
 
 export const authRoutes = new Hono();
 
@@ -43,6 +44,13 @@ authRoutes.post("/sign-up/email", async (c) => {
   const { name, email, password } = await readCredentials(c);
   if (typeof name !== "string" || typeof email !== "string" || typeof password !== "string") {
     throw new ApiError(400, "invalid_body", "name, email and password are required");
+  }
+  if (!isValidEmail(email)) {
+    throw new ApiError(400, "invalid_body", "email must be a valid email address");
+  }
+  const pwError = passwordError(password);
+  if (pwError) {
+    throw new ApiError(400, "invalid_body", pwError);
   }
 
   const existing = await pool.query(`select id from "user" where email = $1`, [email]);

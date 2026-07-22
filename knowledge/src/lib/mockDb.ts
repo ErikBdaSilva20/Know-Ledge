@@ -7,6 +7,15 @@ import type {
   SharedDocumentReference,
   User,
 } from "./types";
+import {
+  mockDocumentReferences,
+  mockDocuments,
+  mockFavorites,
+  mockFolders,
+  mockSharedDocumentReferences,
+  mockSharedDocuments,
+  mockUsers,
+} from "../mock/data";
 
 const STORAGE_KEY = "kv:db:v1";
 
@@ -30,148 +39,21 @@ function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
+// Full content (folders/documents/shared docs/references/favorites) lives in
+// src/mock/data.ts — a dedicated folder so the mocked-deploy dataset (people
+// reviewing VITE_DATA_SOURCE=mock builds, e.g. on Vercel) is one place to
+// read or extend, separate from this file's plumbing. Real accounts against
+// the gateway are unaffected (dev/mock-gateway/seed.ts's Postgres seed is
+// what that path uses). session.tsx's mock login always resolves to "u_carla".
 function seed(): DbState {
-  const users: User[] = [
-    { id: "u_ana", name: "Ana Silva", email: "ana@empresa.com", role: "rep" },
-    { id: "u_bruno", name: "Bruno Costa", email: "bruno@empresa.com", role: "manager" },
-    { id: "u_carla", name: "Carla Dias", email: "carla@empresa.com", role: "admin" },
-    { id: "u_diego", name: "Diego Reis", email: "diego@empresa.com", role: "rep" },
-  ];
-
-  const t = nowIso();
-  const folders: Folder[] = [
-    {
-      id: "f_ana_1",
-      owner_id: "u_ana",
-      parent_id: null,
-      name: "Projetos",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "f_ana_2",
-      owner_id: "u_ana",
-      parent_id: "f_ana_1",
-      name: "Cliente Acme",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "f_ana_3",
-      owner_id: "u_ana",
-      parent_id: null,
-      name: "Notas",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "f_bruno_1",
-      owner_id: "u_bruno",
-      parent_id: null,
-      name: "Gestão",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "f_diego_1",
-      owner_id: "u_diego",
-      parent_id: null,
-      name: "Pesquisa",
-      created_at: t,
-      updated_at: t,
-    },
-  ];
-
-  const documents: Document[] = [
-    {
-      id: "d_ana_1",
-      owner_id: "u_ana",
-      folder_id: "f_ana_2",
-      title: "Kickoff Acme",
-      content:
-        "# Kickoff Acme\n\nReunião inicial com o cliente. Ver também [[Processo de Onboarding|s_1]] e [[Métricas Trimestrais|s_2]].\n\n- Definir escopo\n- Cronograma\n- Riscos",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "d_ana_2",
-      owner_id: "u_ana",
-      folder_id: "f_ana_3",
-      title: "Ideias soltas",
-      content:
-        "# Ideias\n\nAlgumas ideias para explorar depois. Relacionado a [[Kickoff Acme|d_ana_1]].",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "d_bruno_1",
-      owner_id: "u_bruno",
-      folder_id: "f_bruno_1",
-      title: "Plano trimestral",
-      content:
-        "# Plano trimestral\n\nMetas do time para o trimestre. Ver [[Métricas Trimestrais|s_2]].",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "d_diego_1",
-      owner_id: "u_diego",
-      folder_id: "f_diego_1",
-      title: "Pesquisa de mercado",
-      content: "# Pesquisa\n\nAnálise competitiva do setor.",
-      created_at: t,
-      updated_at: t,
-    },
-  ];
-
-  const shared_documents: SharedDocument[] = [
-    {
-      id: "s_1",
-      title: "Processo de Onboarding",
-      content:
-        "# Processo de Onboarding\n\nGuia oficial para novos membros. Ver [[Métricas Trimestrais|s_2]] para acompanhar progresso.",
-      source_document_id: null,
-      published_by: "u_carla",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "s_2",
-      title: "Métricas Trimestrais",
-      content: "# Métricas Trimestrais\n\nKPIs oficiais do trimestre.",
-      source_document_id: null,
-      published_by: "u_bruno",
-      created_at: t,
-      updated_at: t,
-    },
-    {
-      id: "s_3",
-      title: "Política de Segurança",
-      content: "# Segurança\n\nBoas práticas obrigatórias.",
-      source_document_id: null,
-      published_by: "u_carla",
-      created_at: t,
-      updated_at: t,
-    },
-  ];
-
-  const shared_document_references: SharedDocumentReference[] = [
-    {
-      id: uid("sr"),
-      source_shared_document_id: "s_1",
-      target_shared_document_id: "s_2",
-      created_at: t,
-    },
-  ];
-
   return {
-    users,
-    folders,
-    documents,
-    shared_documents,
-    document_references: [],
-    shared_document_references,
-    favorites: [],
+    users: [...mockUsers],
+    folders: [...mockFolders],
+    documents: [...mockDocuments],
+    shared_documents: [...mockSharedDocuments],
+    document_references: [...mockDocumentReferences],
+    shared_document_references: [...mockSharedDocumentReferences],
+    favorites: [...mockFavorites],
   };
 }
 
@@ -215,13 +97,6 @@ export function mutate(fn: (draft: DbState) => void) {
 export function subscribe(fn: () => void) {
   listeners.add(fn);
   return () => listeners.delete(fn);
-}
-
-export function resetDb() {
-  window.localStorage.removeItem(STORAGE_KEY);
-  state = seed();
-  persist();
-  listeners.forEach((l) => l());
 }
 
 export const genId = uid;

@@ -23,6 +23,7 @@ export const foldersRepo = {
       owner_id: data.owner_id,
       parent_id: data.parent_id,
       name: data.name,
+      owner_name: data.owner_name ?? null,
       created_at: isoNow(),
       updated_at: isoNow(),
     };

@@ -1,5 +1,5 @@
 // GENERATED — do not edit by hand.
-// Mirrors knowledge/supabase/migrations/0001_business_schema.sql (Story 2.5).
+// Mirrors knowledge/Database/migrations/0001_business_schema.sql (Story 2.5).
 // Regenerate whenever that migration changes.
 //
 // `Insert` omits every column the gateway derives server-side (id, owner_id,
@@ -15,12 +15,14 @@ export interface Database {
           owner_id: string;
           parent_id: string | null;
           name: string;
+          owner_name: string | null;
           created_at: string;
           updated_at: string;
         };
         Insert: {
           parent_id: string | null;
           name: string;
+          owner_name?: string;
         };
       };
       documents: {
@@ -30,6 +32,7 @@ export interface Database {
           folder_id: string | null;
           title: string;
           content: string;
+          owner_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -37,6 +40,7 @@ export interface Database {
           folder_id: string | null;
           title: string;
           content?: string;
+          owner_name?: string;
         };
       };
       shared_documents: {
@@ -46,6 +50,7 @@ export interface Database {
           content: string;
           source_document_id: string | null;
           published_by: string;
+          published_by_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -53,6 +58,7 @@ export interface Database {
           title: string;
           content: string;
           source_document_id: string | null;
+          published_by_name?: string;
         };
       };
       document_references: {

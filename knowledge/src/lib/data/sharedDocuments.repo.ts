@@ -1,7 +1,7 @@
 import { db } from "./client";
 import { isGatewayMode } from "./dataSource";
 import { genId, getState, isoNow, mutate } from "../mockDb";
-import type { SharedDocument } from "../types";
+import type { Document, SharedDocument } from "../types";
 import type { Database } from "./types.gen";
 
 const table = db.table<SharedDocument>("shared_documents");
@@ -25,6 +25,7 @@ export const sharedDocumentsRepo = {
       content: data.content,
       source_document_id: data.source_document_id,
       published_by: data.published_by,
+      published_by_name: data.published_by_name ?? null,
       created_at: isoNow(),
       updated_at: isoNow(),
     };
@@ -32,6 +33,31 @@ export const sharedDocumentsRepo = {
       db.shared_documents.push(s);
     });
     return s;
+  },
+  // Publish a personal document into the Base Compartilhada. Goes through the
+  // generic create() above (POST /data/shared_documents) rather than the
+  // dedicated /shared/publish route from Story 4.1 — that route isn't
+  // guaranteed to exist on the real tenant-gateway yet (see FOLLOW-UPS-BLOCO-5
+  // in _bmad-output/), and the generic route already covers everything else
+  // publish needs server-side: shared_documents is configured with
+  // `serverDerivedColumn: "published_by"` (never trusts the client) and
+  // `ownerVisibility: false` (only manager/admin can write) — see
+  // dev/mock-gateway/src/tables.ts. What it does NOT give is idempotency on a
+  // double-submit; PublishToSharedButton's disable-while-publishing covers the
+  // common single-tab double-click, but a genuine race across tabs/devices
+  // could still create two copies — an accepted, documented tradeoff.
+  async publish(
+    source: Pick<Document, "id" | "title" | "content">,
+    publishedBy: string,
+    publishedByName?: string,
+  ): Promise<SharedDocument> {
+    return sharedDocumentsRepo.create({
+      title: source.title,
+      content: source.content,
+      source_document_id: source.id,
+      published_by: publishedBy,
+      published_by_name: publishedByName,
+    });
   },
   // Story 6.11 AC#1 — see documents.repo.ts's update() for why `opts` exists.
   async update(

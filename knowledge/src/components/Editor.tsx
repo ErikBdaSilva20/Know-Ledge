@@ -1,21 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
 import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { isGatewayMode } from "@/lib/data/dataSource";
 import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";
 import { handleDomainError } from "@/lib/handleError";
-import type { Scope } from "@/lib/types";
+import { useMediaQuery } from "@/lib/useMediaQuery";
+import type { Document, Scope, SharedDocument } from "@/lib/types";
 import { Code2, Eye, Save } from "lucide-react";
 import { Button } from "./ui/button";
 import { cn } from "@/lib/utils";
+
+// Tailwind's `md` breakpoint (see tailwind config) — the same line where the
+// pane grid below switches from stacked to side-by-side.
+const DESKTOP_QUERY = "(min-width: 768px)";
 
 interface Props {
   scope: Scope;
   id: string;
   readOnly?: boolean;
 }
+
+const AUTOSAVE_DEBOUNCE_MS = 5000;
 
 interface PaneToggleProps {
   active: boolean;
@@ -28,28 +36,61 @@ interface PaneToggleProps {
 
 /**
  * Reusable pane visibility toggle (raw markdown / formatted preview).
- * `disabled` prevents hiding the last remaining pane.
+ * `disabled` prevents hiding the last remaining pane. Hit area is padded to
+ * the 44px touch-target floor below `md:`, where this is the only way to
+ * reach the other pane (see EXPERIENCE.md § Component Patterns).
  */
-function PaneToggle({ active, disabled, onClick, icon, label, title }: PaneToggleProps) {
+const PaneToggle = forwardRef<HTMLButtonElement, PaneToggleProps>(function PaneToggle(
+  { active, disabled, onClick, icon, label, title },
+  ref,
+) {
   return (
     <Button
+      ref={ref}
       variant={active ? "secondary" : "ghost"}
       size="sm"
       onClick={onClick}
       disabled={disabled}
       title={title}
       aria-pressed={active}
+      className="min-h-11 min-w-11 md:min-h-0 md:min-w-0"
     >
       <span className="sm:mr-1">{icon}</span>
       <span className="hidden sm:inline">{label}</span>
     </Button>
   );
-}
+});
 
 export function Editor({ scope, id, readOnly }: Props) {
-  const personal = useDb((s) => s.documents.find((d) => d.id === id));
-  const shared = useDb((s) => s.shared_documents.find((s) => s.id === id));
-  const doc = scope === "personal" ? personal : shared;
+  const mockPersonal = useDb((s) => s.documents.find((d) => d.id === id));
+  const mockShared = useDb((s) => s.shared_documents.find((s) => s.id === id));
+
+  // useDb only ever reflects the local mock store — in gateway mode it's never
+  // repopulated from the backend, so `doc` was always undefined and every
+  // document (even one just created successfully) rendered as "not found".
+  // Fetch straight from the repo instead, mirroring Explorer.tsx's fix.
+  const [gatewayDoc, setGatewayDoc] = useState<Document | SharedDocument | undefined>(undefined);
+
+  useEffect(() => {
+    if (!isGatewayMode()) return;
+    let cancelled = false;
+    setGatewayDoc(undefined);
+    const repo = scope === "personal" ? documentsRepo : sharedDocumentsRepo;
+    repo.list().then((docs) => {
+      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === id));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [scope, id]);
+
+  const doc = isGatewayMode() ? gatewayDoc : scope === "personal" ? mockPersonal : mockShared;
+
+  // A published shared document is an immutable snapshot — nobody edits it in
+  // place, not even the original author (they edit the personal source and
+  // re-publish). Enforce that here so the invariant holds regardless of what
+  // any caller passes, not just at the SharedDoc call site.
+  const isReadOnly = readOnly || scope === "shared";
 
   const [title, setTitle] = useState(doc?.title ?? "");
   const [content, setContent] = useState(doc?.content ?? "");
@@ -58,11 +99,26 @@ export function Editor({ scope, id, readOnly }: Props) {
   // next save so the gateway can 409 instead of overwriting a concurrent edit.
   const [lastKnownUpdatedAt, setLastKnownUpdatedAt] = useState<string | undefined>(doc?.updated_at);
   const [savedAt, setSavedAt] = useState<Date | null>(null);
-  const [showRaw, setShowRaw] = useState(true);
+  const [saving, setSaving] = useState(false);
+  // Below md:, exactly one pane is ever shown (default Preview — the point is
+  // reading, not the source) and the two toggles become mutually exclusive.
+  // At md: and above, both start visible and toggle independently, unchanged
+  // from before. See EXPERIENCE.md § Component Patterns / Responsive & Platform.
+  const isDesktop = useMediaQuery(DESKTOP_QUERY);
+  const [showRaw, setShowRaw] = useState(isDesktop);
   const [showPreview, setShowPreview] = useState(true);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
   const [autoQuery, setAutoQuery] = useState("");
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paneContentRef = useRef<HTMLDivElement>(null);
+  const rawToggleRef = useRef<HTMLButtonElement>(null);
+  const previewToggleRef = useRef<HTMLButtonElement>(null);
+  // Set right before a pane swap if focus was inside the pane about to be
+  // hidden — consumed by the effect below once the swap has committed, so
+  // focus lands on the now-visible pane's toggle instead of dropping to
+  // <body> when React unmounts the subtree that held it.
+  const restoreFocusRef = useRef(false);
 
   const allPersonal = useDb((s) => s.documents);
   const allShared = useDb((s) => s.shared_documents);
@@ -76,30 +132,51 @@ export function Editor({ scope, id, readOnly }: Props) {
     pushRecent(scope, doc.id);
   }, [doc?.id]);
 
+  // Shared by the debounced auto-save below and the manual "Salvar" button —
+  // both just need to run the same save with whatever title/content/doc this
+  // render closed over.
+  const runSave = async () => {
+    if (!doc) return;
+    setSaving(true);
+    try {
+      const opts = { expectedUpdatedAt: lastKnownUpdatedAt };
+      const saved =
+        scope === "personal"
+          ? await documentsRepo.update(doc.id, { title, content }, opts)
+          : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
+      // Best-effort: the document itself already saved successfully above,
+      // so a ref-sync failure shouldn't flip `dirty` back on or block the
+      // save indicator — just surface it and move on.
+      syncAllRefsFor(scope, doc.id).catch(handleDomainError);
+      setDirty(false);
+      setSavedAt(new Date());
+      setLastKnownUpdatedAt(saved.updated_at);
+    } catch (err) {
+      // Keep `dirty` true — the next edit (or a manual retry) re-triggers
+      // this effect instead of silently losing the pending change. On a
+      // 409 (someone else saved first) the toast from handleDomainError
+      // is the only reaction today — no auto-merge (Story 6.11 AC#5 is
+      // only partially satisfied: the user is warned, not offered a merge).
+      handleDomainError(err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   useEffect(() => {
     if (!dirty || !doc) return;
-    const t = setTimeout(async () => {
-      try {
-        const opts = { expectedUpdatedAt: lastKnownUpdatedAt };
-        const saved =
-          scope === "personal"
-            ? await documentsRepo.update(doc.id, { title, content }, opts)
-            : await sharedDocumentsRepo.update(doc.id, { title, content }, opts);
-        syncAllRefsFor(scope, doc.id);
-        setDirty(false);
-        setSavedAt(new Date());
-        setLastKnownUpdatedAt(saved.updated_at);
-      } catch (err) {
-        // Keep `dirty` true — the next edit (or a manual retry) re-triggers
-        // this effect instead of silently losing the pending change. On a
-        // 409 (someone else saved first) the toast from handleDomainError
-        // is the only reaction today — no auto-merge (Story 6.11 AC#5 is
-        // only partially satisfied: the user is warned, not offered a merge).
-        handleDomainError(err);
-      }
-    }, 500);
-    return () => clearTimeout(t);
+    // Debounced 5s after the last keystroke — avoids a network save on every
+    // character while the user is still actively typing.
+    saveTimeoutRef.current = setTimeout(runSave, AUTOSAVE_DEBOUNCE_MS);
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    };
   }, [dirty, title, content, doc?.id, scope, lastKnownUpdatedAt]);
+
+  const handleManualSave = () => {
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    runSave();
+  };
 
   const visiblePersonalIds = useMemo(() => new Set(allPersonal.map((d) => d.id)), [allPersonal]);
 
@@ -113,7 +190,47 @@ export function Editor({ scope, id, readOnly }: Props) {
     return all.filter((x) => x.title.toLowerCase().includes(q)).slice(0, 8);
   }, [showAutocomplete, autoQuery, allShared, allPersonal]);
 
+  // Below md:, picking a pane hides the other one outright (radio-like); at
+  // md: and up, the two toggle independently as before. Either way, if focus
+  // was inside the pane about to disappear, restoreFocusRef flags the effect
+  // below to move it to the newly-shown pane's toggle once React commits the
+  // swap, instead of letting it drop to <body>.
+  const selectPane = (pane: "raw" | "preview") => {
+    if (paneContentRef.current?.contains(document.activeElement)) {
+      restoreFocusRef.current = true;
+    }
+    if (!isDesktop) {
+      setShowRaw(pane === "raw");
+      setShowPreview(pane === "preview");
+      return;
+    }
+    if (pane === "raw") setShowRaw((v) => !v);
+    else setShowPreview((v) => !v);
+  };
+
+  useEffect(() => {
+    if (!restoreFocusRef.current) return;
+    restoreFocusRef.current = false;
+    (showRaw ? rawToggleRef : previewToggleRef).current?.focus();
+  }, [showRaw, showPreview]);
+
+  // selectPane only enforces exclusivity at click time — an editor already
+  // open with both panes shown (the desktop default) doesn't get that
+  // treatment just by the window crossing below md:, e.g. a browser resize.
+  // Without this, the original bug (both panes stacked, unbounded raw pane
+  // on top) comes back through resize instead of through fresh load.
+  useEffect(() => {
+    if (!isDesktop && showRaw && showPreview) {
+      setShowRaw(false);
+      setShowPreview(true);
+    }
+  }, [isDesktop, showRaw, showPreview]);
+
   if (!doc) return <div className="p-10 text-muted-foreground">Documento não encontrado.</div>;
+
+  // Guard: never hide the last remaining pane (desktop only — below md: the
+  // two panes are mutually exclusive by construction, see selectPane above).
+  const bothVisible = showRaw && showPreview;
 
   const handleContentChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const v = e.target.value;
@@ -152,23 +269,23 @@ export function Editor({ scope, id, readOnly }: Props) {
     }, 0);
   };
 
-  // Guard: never hide the last remaining pane.
-  const bothVisible = showRaw && showPreview;
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-3 sm:px-6">
+      {/* Own row for the title below sm: (a ~360px phone doesn't have room to
+          share a row with save state + the pane toggle without wrapping
+          unpredictably); back to one row, vertically centered, at sm:+. */}
+      <div className="flex flex-col gap-2 border-b border-border px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-6">
         <input
           value={title}
-          disabled={readOnly}
+          disabled={isReadOnly}
           onChange={(e) => {
             setTitle(e.target.value);
             setDirty(true);
           }}
-          className="min-w-0 flex-1 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground sm:text-2xl"
+          className="min-w-0 bg-transparent text-xl font-semibold tracking-tight outline-none placeholder:text-muted-foreground sm:flex-1 sm:text-2xl"
           placeholder="Sem título"
         />
-        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="flex items-center justify-end gap-2 text-xs text-muted-foreground">
           {dirty ? (
             <span className="flex items-center gap-1">
               <Save className="h-3 w-3 animate-pulse" /> Salvando…
@@ -178,29 +295,51 @@ export function Editor({ scope, id, readOnly }: Props) {
           ) : (
             <span className="hidden sm:inline">Salvo</span>
           )}
+          {!isReadOnly && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleManualSave}
+              disabled={!dirty || saving}
+              title="Salvar agora"
+              className="min-h-11 min-w-11 md:min-h-0 md:min-w-0"
+            >
+              <Save className="h-3.5 w-3.5 sm:mr-1" />
+              <span className="hidden sm:inline">Salvar</span>
+            </Button>
+          )}
           <div className="flex items-center gap-1 rounded-md border border-border p-0.5">
             <PaneToggle
+              ref={rawToggleRef}
               active={showRaw}
-              disabled={showRaw && !showPreview}
-              onClick={() => setShowRaw((v) => !v)}
+              disabled={isDesktop && showRaw && !showPreview}
+              onClick={() => selectPane("raw")}
               icon={<Code2 className="h-3.5 w-3.5" />}
               label="Markdown"
               title={showRaw ? "Ocultar markdown" : "Mostrar markdown"}
             />
             <PaneToggle
+              ref={previewToggleRef}
               active={showPreview}
-              disabled={showPreview && !showRaw}
-              onClick={() => setShowPreview((v) => !v)}
+              disabled={isDesktop && showPreview && !showRaw}
+              onClick={() => selectPane("preview")}
               icon={<Eye className="h-3.5 w-3.5" />}
               label="Preview"
               title={showPreview ? "Ocultar preview" : "Mostrar preview"}
             />
           </div>
+          {/* Screen-reader-only: sighted users can already see which pane is
+              showing, but a screen-reader user whose focus stayed in the
+              content (not on the toggle) needs the swap announced. */}
+          <span role="status" aria-live="polite" className="sr-only">
+            {!isDesktop && (showRaw ? "Mostrando: Markdown" : "Mostrando: Preview")}
+          </span>
         </div>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
         <div
+          ref={paneContentRef}
           className={cn(
             "grid min-h-full",
             bothVisible ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1",
@@ -210,16 +349,21 @@ export function Editor({ scope, id, readOnly }: Props) {
             <div className={cn("relative", showPreview && "border-r border-border")}>
               <textarea
                 value={content}
-                readOnly={readOnly}
+                readOnly={isReadOnly}
                 onChange={handleContentChange}
                 onBlur={() => setTimeout(() => setShowAutocomplete(false), 150)}
                 placeholder="Escreva em Markdown… use [[ para linkar outros documentos"
+                aria-label="Markdown bruto"
                 rows={1}
                 ref={(el) => {
                   textareaRef.current = el;
                   if (el) {
                     el.style.height = "auto";
-                    const parentH = el.parentElement?.clientHeight ?? 0;
+                    // The height floor only exists to keep this pane visually
+                    // level with Preview when they sit side-by-side; alone
+                    // (mobile, single pane) it would just force an oversized
+                    // box on short documents, so it only applies at md:+.
+                    const parentH = isDesktop ? (el.parentElement?.clientHeight ?? 0) : 0;
                     el.style.height = `${Math.max(el.scrollHeight, parentH)}px`;
                   }
                 }}

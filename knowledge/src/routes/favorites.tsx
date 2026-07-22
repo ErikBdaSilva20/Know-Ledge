@@ -1,20 +1,30 @@
 import { Link } from "react-router-dom";
 import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { useSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
 import { BookOpen, FileText, Star } from "lucide-react";
+import { documentsRepo } from "@/lib/data/documents.repo";
+import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { handleDomainError } from "@/lib/handleError";
 import { Button } from "@/components/ui/button";
 
 export function FavoritesPage() {
   const { user } = useSession();
-  const favorites = useDb((s) => s.favorites.filter((f) => f.owner_id === user?.id));
-  const documents = useDb((s) => s.documents);
-  const shared = useDb((s) => s.shared_documents);
+  const mockFavorites = useDb((s) => s.favorites);
+  const mockDocuments = useDb((s) => s.documents);
+  const mockShared = useDb((s) => s.shared_documents);
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
+    mockFavorites,
+    favoritesRepo.list,
+  );
+  const favorites = allFavorites.filter((f) => f.owner_id === user?.id);
+  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: shared } = useGatewayList(mockShared, sharedDocumentsRepo.list);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Favoritos</h1>
       <p className="mt-1 text-sm text-muted-foreground">Documentos que você marcou com estrela.</p>
       <Card className="mt-6">
@@ -40,7 +50,9 @@ export function FavoritesPage() {
                     <Button
                       variant="ghost"
                       size="icon"
-                      onClick={() => favoritesRepo.remove(f.id).catch(handleDomainError)}
+                      onClick={() =>
+                        favoritesRepo.remove(f.id).then(refreshFavorites).catch(handleDomainError)
+                      }
                     >
                       <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                     </Button>
@@ -58,7 +70,9 @@ export function FavoritesPage() {
                   <Button
                     variant="ghost"
                     size="icon"
-                    onClick={() => favoritesRepo.remove(f.id).catch(handleDomainError)}
+                    onClick={() =>
+                      favoritesRepo.remove(f.id).then(refreshFavorites).catch(handleDomainError)
+                    }
                   >
                     <Star className="h-4 w-4 fill-amber-500 text-amber-500" />
                   </Button>

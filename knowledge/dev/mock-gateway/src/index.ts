@@ -3,11 +3,13 @@ import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { cors } from "hono/cors";
 import { ApiError, errorBody, translatePgError } from "./errors.js";
+import { isAllowedDevOrigin } from "./cors.js";
 import { accessLog, requestId } from "./logging.js";
 import { rateLimitMutations } from "./rateLimit.js";
 import { authRoutes } from "./routes/authRoutes.js";
 import { dataRoutes } from "./routes/data.js";
 import { publishRoutes } from "./routes/publish.js";
+import { usersRoutes } from "./routes/users.js";
 import type { SessionUser } from "./auth.js";
 
 type Env = { Variables: { requestId: string; user?: SessionUser } };
@@ -18,11 +20,12 @@ app.use("*", requestId, accessLog);
 
 // Local-only CORS: the real gateway never uses a wildcard origin in
 // production (Story 7.4 AC#6) — this only exists so the Vite dev server can
-// hit localhost with credentials.
+// hit localhost with credentials. See cors.ts for why any localhost port is
+// accepted instead of a single pinned one.
 app.use(
   "*",
   cors({
-    origin: process.env.DEV_ORIGIN ?? "http://localhost:5173",
+    origin: (origin) => isAllowedDevOrigin(origin, process.env.DEV_ORIGIN),
     credentials: true,
     allowHeaders: ["Content-Type", "X-Tenant-Id", "Idempotency-Key"],
   }),
@@ -68,6 +71,7 @@ app.onError((err, c) => {
 
 app.get("/health", (c) => c.json({ ok: true }));
 app.route("/api/auth", authRoutes);
+app.route("/api/users", usersRoutes);
 app.route("/data", dataRoutes);
 app.route("/shared", publishRoutes);
 

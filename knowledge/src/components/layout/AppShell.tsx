@@ -1,4 +1,4 @@
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useEffect, useState, type ReactNode } from "react";
 import {
   BookOpen,
@@ -6,7 +6,9 @@ import {
   ChevronRight,
   Compass,
   FolderTree,
+  HelpCircle,
   Home,
+  LogOut,
   Menu,
   Moon,
   Network,
@@ -16,7 +18,6 @@ import {
   Sun,
   Timer,
 } from "lucide-react";
-import { RoleSwitcher } from "./RoleSwitcher";
 import { useSession } from "@/lib/session";
 import { useTheme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
@@ -39,6 +40,7 @@ const NAV: NavItem[] = [
   { to: "/favorites", label: "Favoritos", icon: Star },
   { to: "/recent", label: "Recentes", icon: Timer },
   { to: "/admin", label: "Administração", icon: Shield, managerOnly: true },
+  { to: "/ajuda", label: "Ajuda", icon: HelpCircle },
 ];
 
 const COLLAPSE_KEY = "kv:sidebar:collapsed:v1";
@@ -52,8 +54,9 @@ function SidebarInner({
   collapsed?: boolean;
   onToggleCollapse?: () => void;
 }) {
-  const { can } = useSession();
+  const { user, can, logout } = useSession();
   const { pathname } = useLocation();
+  const navigate = useNavigate();
   return (
     <div className="flex h-full flex-col">
       <div
@@ -115,7 +118,28 @@ function SidebarInner({
             <Compass className="h-4 w-4" />
           </div>
         ) : (
-          <RoleSwitcher />
+          <div className="flex items-center gap-2 rounded-md px-2 py-1.5">
+            <div className="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-[11px] font-semibold text-primary-foreground">
+              {user ? user.name.slice(0, 1) : "?"}
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col leading-tight">
+              <span className="truncate text-xs font-medium">{user?.name ?? "Sem usuário"}</span>
+              <span className="truncate text-[10px] uppercase tracking-wider text-muted-foreground">
+                {user?.role ?? "—"}
+              </span>
+            </div>
+            <button
+              type="button"
+              onClick={async () => {
+                await logout();
+                navigate("/login");
+              }}
+              title="Sair"
+              className="rounded-md p-1.5 text-muted-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <LogOut className="h-3.5 w-3.5" />
+            </button>
+          </div>
         )}
       </div>
     </div>

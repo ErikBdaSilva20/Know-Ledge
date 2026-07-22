@@ -29,14 +29,27 @@ end;
 $$ language plpgsql;
 
 -- 1. folders — personal vault organization (owner-written, needs owner_id).
+--
+-- owner_name: a denormalized display-name snapshot, stamped by the client
+-- from its own session at create time (never sent as someone else's name —
+-- the gateway always attributes owner_id to the session regardless of what a
+-- client sends, so a client can only ever truthfully stamp its own). This
+-- exists because there is no generic route to list `"user"` rows (that table
+-- is reserved to Better-Auth, Importantdoc.md §B4.4) — a dedicated /api/users
+-- route would be the "real" fix but isn't guaranteed on the production
+-- gateway yet (see _bmad-output/FOLLOW-UPS-BLOCO-5-...). `alter table` (not
+-- just the column in `create table`) keeps this migration idempotent for
+-- tenants that already ran an earlier version of this file.
 create table if not exists folders (
   id          uuid primary key default gen_random_uuid(),
   owner_id    text not null references "user"(id) on delete cascade,
   parent_id   uuid references folders(id) on delete cascade,
   name        text not null,
+  owner_name  text,
   created_at  timestamptz(3) not null default now(),
   updated_at  timestamptz(3) not null default now()
 );
+alter table folders add column if not exists owner_name text;
 create index if not exists idx_folders_owner on folders(owner_id);
 create index if not exists idx_folders_parent on folders(parent_id);
 
@@ -54,9 +67,11 @@ create table if not exists documents (
   folder_id   uuid references folders(id) on delete cascade,
   title       text not null,
   content     text not null default '',
+  owner_name  text,
   created_at  timestamptz(3) not null default now(),
   updated_at  timestamptz(3) not null default now()
 );
+alter table documents add column if not exists owner_name text;
 create index if not exists idx_documents_owner on documents(owner_id);
 create index if not exists idx_documents_folder on documents(folder_id);
 
@@ -110,14 +125,16 @@ create unique index if not exists uq_favorites_owner_doc
 -- instead of the Dev Notes' original "set null" suggestion, which would
 -- have violated the NOT NULL constraint.
 create table if not exists shared_documents (
-  id                  uuid primary key default gen_random_uuid(),
-  title               text not null,
-  content             text not null default '',
-  source_document_id  uuid,
-  published_by        text not null references "user"(id),
-  created_at          timestamptz(3) not null default now(),
-  updated_at          timestamptz(3) not null default now()
+  id                    uuid primary key default gen_random_uuid(),
+  title                 text not null,
+  content               text not null default '',
+  source_document_id    uuid,
+  published_by          text not null references "user"(id),
+  published_by_name     text,
+  created_at            timestamptz(3) not null default now(),
+  updated_at            timestamptz(3) not null default now()
 );
+alter table shared_documents add column if not exists published_by_name text;
 
 drop trigger if exists trg_shared_documents_touch_updated_at on shared_documents;
 create trigger trg_shared_documents_touch_updated_at
