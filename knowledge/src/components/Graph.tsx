@@ -578,10 +578,7 @@ export function Graph() {
       if (!d.moved && Math.hypot(dx, dy) > 4) d.moved = true;
       if (d.moved && canvas) {
         const rect = canvas.getBoundingClientRect();
-        const [wx, wy] = transformRef.current.invert([
-          e.clientX - rect.left,
-          e.clientY - rect.top,
-        ]);
+        const [wx, wy] = transformRef.current.invert([e.clientX - rect.left, e.clientY - rect.top]);
         const deltaX = wx - d.startWorld.x;
         const deltaY = wy - d.startWorld.y;
         for (const k of d.component) {
