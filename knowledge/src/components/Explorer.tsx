@@ -19,16 +19,18 @@ import {
   FilePlus,
   FileText,
   Folder as FolderIcon,
+  FolderInput,
   FolderPlus,
   MoreHorizontal,
   PanelLeft,
   Pencil,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { Link, useNavigate } from "react-router-dom";
 import { ConfirmDialog } from "./ConfirmDialog";
+import { MoveDocDialog } from "./MoveDocDialog";
 import { SideNavShell } from "./SideNavShell";
 
 interface Props {
@@ -550,6 +552,21 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               .then(refreshGatewayData)
               .catch((err) => handleDomainError(err, navigate))
           }
+          // Same ownership rule as the drag-and-drop path this replaces for
+          // touch — no point offering a move the gateway would reject anyway.
+          moveItem={
+            draggable && (
+              <MoveDocDialog
+                doc={doc}
+                folders={folders.filter((f) => f.owner_id === doc.owner_id)}
+                onMoved={refreshGatewayData}
+              >
+                <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
+                  <FolderInput className="mr-2 h-3.5 w-3.5" /> Mover para…
+                </DropdownMenuItem>
+              </MoveDocDialog>
+            )
+          }
           itemName={doc.title || "Sem título"}
         />
       </div>
@@ -643,11 +660,21 @@ interface MenuProps {
   onNewFolder?: () => void;
   onRename: () => void;
   onDelete: () => void;
+  /** Pre-built "Mover para…" item (owns its own dialog) — documents only. */
+  moveItem?: ReactNode;
   itemName: string;
   isFolder?: boolean;
 }
 
-function FolderMenu({ onNewDoc, onNewFolder, onRename, onDelete, itemName, isFolder }: MenuProps) {
+function FolderMenu({
+  onNewDoc,
+  onNewFolder,
+  onRename,
+  onDelete,
+  moveItem,
+  itemName,
+  isFolder,
+}: MenuProps) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -680,6 +707,7 @@ function FolderMenu({ onNewDoc, onNewFolder, onRename, onDelete, itemName, isFol
         <DropdownMenuItem onSelect={onRename}>
           <Pencil className="mr-2 h-3.5 w-3.5" /> Renomear
         </DropdownMenuItem>
+        {moveItem}
         <ConfirmDialog
           title={isFolder ? `Excluir pasta "${itemName}"?` : `Excluir "${itemName}"?`}
           description={
