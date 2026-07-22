@@ -7,11 +7,11 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
-import { isGatewayMode } from "@/lib/data/dataSource";
+import { usersRepo } from "@/lib/data/users.repo";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
 import type { Document, Folder } from "@/lib/types";
-import { useDb } from "@/lib/useDb";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { cn } from "@/lib/utils";
 import {
   ChevronDown,
@@ -54,32 +54,23 @@ function isDescendant(allFolders: Folder[], candidateParentId: string, folderId:
 export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const mockFolders = useDb((s) => s.folders);
-  const mockDocuments = useDb((s) => s.documents);
-  const users = useDb((s) => s.users);
+  const { data: users } = useGatewayList(usersRepo.list);
 
-  // useDb only ever reflects the local mock store — in gateway mode, writes
-  // go to the real backend but nothing repopulates useDb from it, so a
-  // successfully created folder/document would never appear here (looked
-  // like the buttons did nothing, even though the gateway logged a 201).
-  // Fetch straight from the repos instead, and refetch after every mutation
-  // this component makes.
-  const [gatewayFolders, setGatewayFolders] = useState<Folder[]>([]);
-  const [gatewayDocuments, setGatewayDocuments] = useState<Document[]>([]);
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5),
+  // so fetch the folders/documents straight from the repos and refetch after
+  // every mutation this component makes.
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [documents, setDocuments] = useState<Document[]>([]);
 
-  const refreshGatewayData = async () => {
-    if (!isGatewayMode()) return;
+  const refreshData = async () => {
     const [f, d] = await Promise.all([foldersRepo.list(), documentsRepo.list()]);
-    setGatewayFolders(f);
-    setGatewayDocuments(d);
+    setFolders(f);
+    setDocuments(d);
   };
 
   useEffect(() => {
-    refreshGatewayData();
+    refreshData();
   }, []);
-
-  const folders = isGatewayMode() ? gatewayFolders : mockFolders;
-  const documents = isGatewayMode() ? gatewayDocuments : mockDocuments;
 
   const [openFolders, setOpenFolders] = useState<Record<string, boolean>>({});
   const [renaming, setRenaming] = useState<{ kind: "folder" | "document"; id: string } | null>(
@@ -127,7 +118,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       // Prefer the real roster (usersRepo-backed userMap) when it resolved;
       // otherwise fall back to the owner_name snapshot stamped on any of this
       // owner's own items — the only source of a name when /api/users is
-      // unavailable (mock-only today; see Importantdoc.md §B4.4).
+      // unavailable (Importantdoc.md §B4.4).
       owner: {
         id: ownerId,
         name: userMap.get(ownerId)?.name ?? g.folders[0]?.owner_name ?? g.docs[0]?.owner_name,
@@ -141,10 +132,9 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
 
   // Display-name snapshot stamped at creation (no generic route can list
   // `user` rows — Importantdoc.md §B4.4 reserves that table to Better-Auth).
-  // In gateway mode the server always attributes ownership to the session
-  // regardless of the `ownerId` argument, so the session's own name is always
-  // the truthful one to stamp; `userMap` covers the mock-mode case where a
-  // caller can (locally) create on behalf of a different id.
+  // The gateway always attributes ownership to the session regardless of the
+  // `ownerId` argument, so the session's own name is the truthful one to stamp;
+  // `userMap` only ever matters for an admin viewing another owner's items.
   const ownerName = (ownerId: string) =>
     ownerId === user?.id ? user?.name : userMap.get(ownerId)?.name;
 
@@ -199,7 +189,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         content: "",
         owner_name: ownerName(ownerId),
       });
-      await refreshGatewayData();
+      await refreshData();
       if (folderId) setOpenFolders((s) => ({ ...s, [folderId]: true }));
       setPendingNewItems((s) => {
         const n = new Set(s);
@@ -224,7 +214,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         name: uniqueName("Nova pasta", (name) => folderNameTaken(name, parentId, ownerId)),
         owner_name: ownerName(ownerId),
       });
-      await refreshGatewayData();
+      await refreshData();
       if (parentId) setOpenFolders((s) => ({ ...s, [parentId]: true }));
       setPendingNewItems((s) => {
         const n = new Set(s);
@@ -255,7 +245,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         if (isPendingNew) {
           if (kind === "folder") await foldersRepo.remove(id);
           else await documentsRepo.remove(id);
-          await refreshGatewayData();
+          await refreshData();
           setPendingNewItems((s) => {
             const n = new Set(s);
             n.delete(id);
@@ -283,7 +273,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
         }
         await documentsRepo.update(id, { title: v });
       }
-      await refreshGatewayData();
+      await refreshData();
 
       if (isPendingNew) {
         setPendingNewItems((s) => {
@@ -309,7 +299,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       if (pendingNewItems.has(id) && !renameValue.trim()) {
         if (kind === "folder") await foldersRepo.remove(id);
         else await documentsRepo.remove(id);
-        await refreshGatewayData();
+        await refreshData();
         setPendingNewItems((s) => {
           const n = new Set(s);
           n.delete(id);
@@ -346,7 +336,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       if (dragged.parent_id === targetFolder.id) return;
       try {
         await foldersRepo.update(draggedFolderId, { parent_id: targetFolder.id });
-        await refreshGatewayData();
+        await refreshData();
         setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
       } catch (err) {
         handleDomainError(err, navigate);
@@ -361,7 +351,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       if (dragged.folder_id === targetFolder.id) return;
       try {
         await documentsRepo.update(draggedDocId, { folder_id: targetFolder.id });
-        await refreshGatewayData();
+        await refreshData();
         setOpenFolders((s) => ({ ...s, [targetFolder.id]: true }));
       } catch (err) {
         handleDomainError(err, navigate);
@@ -380,7 +370,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       if (!dragged || dragged.owner_id !== user.id || dragged.parent_id === null) return;
       try {
         await foldersRepo.update(draggedFolderId, { parent_id: null });
-        await refreshGatewayData();
+        await refreshData();
       } catch (err) {
         handleDomainError(err, navigate);
       }
@@ -393,7 +383,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
       if (!dragged || dragged.owner_id !== user.id || dragged.folder_id === null) return;
       try {
         await documentsRepo.update(draggedDocId, { folder_id: null });
-        await refreshGatewayData();
+        await refreshData();
       } catch (err) {
         handleDomainError(err, navigate);
       }
@@ -487,7 +477,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
                   .remove(folder.id)
                   .then(() => {
                     setLastClickedFolderId((cur) => (cur === folder.id ? null : cur));
-                    return refreshGatewayData();
+                    return refreshData();
                   })
                   .catch((err) => handleDomainError(err, navigate))
               }
@@ -549,7 +539,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
           onDelete={() =>
             documentsRepo
               .remove(doc.id)
-              .then(refreshGatewayData)
+              .then(refreshData)
               .catch((err) => handleDomainError(err, navigate))
           }
           // Same ownership rule as the drag-and-drop path this replaces for
@@ -559,7 +549,7 @@ export function Explorer({ activeDocId, onCollapsedChange, hidden }: Props) {
               <MoveDocDialog
                 doc={doc}
                 folders={folders.filter((f) => f.owner_id === doc.owner_id)}
-                onMoved={refreshGatewayData}
+                onMoved={refreshData}
               >
                 <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
                   <FolderInput className="mr-2 h-3.5 w-3.5" /> Mover para…

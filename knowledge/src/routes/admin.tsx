@@ -13,7 +13,6 @@ import { displayName } from "@/lib/displayName";
 import { handleDomainError } from "@/lib/handleError";
 import { useSession } from "@/lib/session";
 import type { Document, Folder, Role } from "@/lib/types";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { BookOpen, FileText, Folder as FolderIcon, Trash2, Users } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
@@ -22,22 +21,12 @@ import { Link, useNavigate } from "react-router-dom";
 export function AdminPage() {
   const { can } = useSession();
   const navigate = useNavigate();
-  const mockDocuments = useDb((s) => s.documents);
-  const mockFolders = useDb((s) => s.folders);
-  const mockShared = useDb((s) => s.shared_documents);
-  const mockUsers = useDb((s) => s.users);
-  const { data: documents, refresh: refreshDocuments } = useGatewayList(
-    mockDocuments,
-    documentsRepo.list,
-  );
-  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
-  const { data: shared, refresh: refreshShared } = useGatewayList(
-    mockShared,
-    sharedDocumentsRepo.list,
-  );
+  const { data: documents, refresh: refreshDocuments } = useGatewayList(documentsRepo.list);
+  const { data: folders } = useGatewayList(foldersRepo.list);
+  const { data: shared, refresh: refreshShared } = useGatewayList(sharedDocumentsRepo.list);
   // Registered users, from the gateway's /api/users route (manager/admin only)
   // — powers the owner filter, the "Usuários" tab and owner/publisher names.
-  const { data: users } = useGatewayList(mockUsers, usersRepo.list);
+  const { data: users } = useGatewayList(usersRepo.list);
   const [ownerFilter, setOwnerFilter] = useState<string>("all");
   const [q, setQ] = useState("");
 

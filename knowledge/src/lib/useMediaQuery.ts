@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 
-// Plain client-side SPA — no SSR, so `window` always exists here (same
-// assumption mockDb.ts already makes).
+// Plain client-side SPA — no SSR, so `window` always exists here.
 export function useMediaQuery(query: string): boolean {
   const [matches, setMatches] = useState(() => window.matchMedia(query).matches);
 

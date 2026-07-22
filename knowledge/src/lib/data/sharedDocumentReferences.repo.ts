@@ -1,6 +1,4 @@
 import { db } from "./client";
-import { isGatewayMode } from "./dataSource";
-import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { SharedDocumentReference } from "../types";
 import type { Database } from "./types.gen";
 
@@ -11,24 +9,12 @@ type SharedDocumentReferenceInsert =
 
 export const sharedDocumentReferencesRepo = {
   async list(): Promise<SharedDocumentReference[]> {
-    if (isGatewayMode()) return table.list();
-    return getState().shared_document_references.slice();
+    return table.list();
   },
   async create(data: SharedDocumentReferenceInsert): Promise<SharedDocumentReference> {
-    if (isGatewayMode()) return table.create(data);
-    const r: SharedDocumentReference = { ...data, id: genId("sr"), created_at: isoNow() };
-    mutate((s) => {
-      s.shared_document_references.push(r);
-    });
-    return r;
+    return table.create(data);
   },
   async remove(id: string): Promise<void> {
-    if (isGatewayMode()) {
-      await table.remove(id);
-      return;
-    }
-    mutate((s) => {
-      s.shared_document_references = s.shared_document_references.filter((r) => r.id !== id);
-    });
+    await table.remove(id);
   },
 };

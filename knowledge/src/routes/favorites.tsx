@@ -1,5 +1,4 @@
 import { Link } from "react-router-dom";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { useSession } from "@/lib/session";
 import { Card } from "@/components/ui/card";
@@ -12,16 +11,10 @@ import { Button } from "@/components/ui/button";
 
 export function FavoritesPage() {
   const { user } = useSession();
-  const mockFavorites = useDb((s) => s.favorites);
-  const mockDocuments = useDb((s) => s.documents);
-  const mockShared = useDb((s) => s.shared_documents);
-  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
-    mockFavorites,
-    favoritesRepo.list,
-  );
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(favoritesRepo.list);
   const favorites = allFavorites.filter((f) => f.owner_id === user?.id);
-  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
-  const { data: shared } = useGatewayList(mockShared, sharedDocumentsRepo.list);
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: shared } = useGatewayList(sharedDocumentsRepo.list);
 
   return (
     <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">

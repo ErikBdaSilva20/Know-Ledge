@@ -20,7 +20,6 @@ import {
 } from "d3-force";
 import { zoom, zoomIdentity, type ZoomBehavior, type ZoomTransform } from "d3-zoom";
 import { select } from "d3-selection";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { foldersRepo } from "@/lib/data/folders.repo";
@@ -192,16 +191,11 @@ export function Graph() {
   const { user, can } = useSession();
   const { theme } = useTheme();
   const navigate = useNavigate();
-  const mockDocuments = useDb((s) => s.documents);
-  const mockFolders = useDb((s) => s.folders);
-  const mockSharedDocs = useDb((s) => s.shared_documents);
-  const mockPersonalRefs = useDb((s) => s.document_references);
-  const mockSharedRefs = useDb((s) => s.shared_document_references);
-  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
-  const { data: folders } = useGatewayList(mockFolders, foldersRepo.list);
-  const { data: sharedDocs } = useGatewayList(mockSharedDocs, sharedDocumentsRepo.list);
-  const { data: personalRefs } = useGatewayList(mockPersonalRefs, documentReferencesRepo.list);
-  const { data: sharedRefs } = useGatewayList(mockSharedRefs, sharedDocumentReferencesRepo.list);
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: folders } = useGatewayList(foldersRepo.list);
+  const { data: sharedDocs } = useGatewayList(sharedDocumentsRepo.list);
+  const { data: personalRefs } = useGatewayList(documentReferencesRepo.list);
+  const { data: sharedRefs } = useGatewayList(sharedDocumentReferencesRepo.list);
 
   const seeAll = can("seeAllDocs");
   const visibleDocs = useMemo(

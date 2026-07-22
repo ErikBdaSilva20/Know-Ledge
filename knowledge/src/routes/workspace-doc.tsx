@@ -3,13 +3,11 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
 import { PublishToSharedButton } from "@/components/PublishToSharedButton";
-import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
-import { isGatewayMode } from "@/lib/data/dataSource";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -19,30 +17,23 @@ export function WorkspaceDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const mockDoc = useDb((s) => s.documents.find((d) => d.id === docId));
 
-  // Same gateway-mode gap as Editor.tsx: useDb never repopulates from the
-  // backend, so this page's own `doc` (used for the owner check, the delete
-  // confirm title, and the "publish" payload) was always undefined too.
-  const [gatewayDoc, setGatewayDoc] = useState<Document | undefined>(undefined);
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5),
+  // so load the personal docs and pick this one out for the owner check, the
+  // delete-confirm title, and the "publish" payload.
+  const [doc, setDoc] = useState<Document | undefined>(undefined);
   useEffect(() => {
-    if (!isGatewayMode()) return;
     let cancelled = false;
-    setGatewayDoc(undefined);
+    setDoc(undefined);
     documentsRepo.list().then((docs) => {
-      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === docId));
+      if (!cancelled) setDoc(docs.find((d) => d.id === docId));
     });
     return () => {
       cancelled = true;
     };
   }, [docId]);
 
-  const doc = isGatewayMode() ? gatewayDoc : mockDoc;
-  const mockFavorites = useDb((s) => s.favorites);
-  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
-    mockFavorites,
-    favoritesRepo.list,
-  );
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(favoritesRepo.list);
   const favorite = allFavorites.find(
     (f) => f.owner_id === user?.id && f.document_scope === "personal" && f.document_id === docId,
   );

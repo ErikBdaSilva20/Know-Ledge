@@ -1,8 +1,7 @@
 import { forwardRef, useEffect, useMemo, useRef, useState } from "react";
-import { useDb } from "@/lib/useDb";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
-import { isGatewayMode } from "@/lib/data/dataSource";
+import { useGatewayList } from "@/lib/useGatewayList";
 import { syncAllRefsFor } from "@/lib/syncRefs";
 import { pushRecent } from "@/lib/recents";
 import { MarkdownView } from "@/lib/markdown";
@@ -62,29 +61,22 @@ const PaneToggle = forwardRef<HTMLButtonElement, PaneToggleProps>(function PaneT
 });
 
 export function Editor({ scope, id, readOnly }: Props) {
-  const mockPersonal = useDb((s) => s.documents.find((d) => d.id === id));
-  const mockShared = useDb((s) => s.shared_documents.find((s) => s.id === id));
-
-  // useDb only ever reflects the local mock store — in gateway mode it's never
-  // repopulated from the backend, so `doc` was always undefined and every
-  // document (even one just created successfully) rendered as "not found".
-  // Fetch straight from the repo instead, mirroring Explorer.tsx's fix.
-  const [gatewayDoc, setGatewayDoc] = useState<Document | SharedDocument | undefined>(undefined);
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5),
+  // so load the scope's full list and pick this doc out of it; re-run when the
+  // route's scope/id changes so switching documents shows the right one.
+  const [doc, setDoc] = useState<Document | SharedDocument | undefined>(undefined);
 
   useEffect(() => {
-    if (!isGatewayMode()) return;
     let cancelled = false;
-    setGatewayDoc(undefined);
+    setDoc(undefined);
     const repo = scope === "personal" ? documentsRepo : sharedDocumentsRepo;
     repo.list().then((docs) => {
-      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === id));
+      if (!cancelled) setDoc(docs.find((d) => d.id === id));
     });
     return () => {
       cancelled = true;
     };
   }, [scope, id]);
-
-  const doc = isGatewayMode() ? gatewayDoc : scope === "personal" ? mockPersonal : mockShared;
 
   // A published shared document is an immutable snapshot — nobody edits it in
   // place, not even the original author (they edit the personal source and
@@ -120,8 +112,11 @@ export function Editor({ scope, id, readOnly }: Props) {
   // <body> when React unmounts the subtree that held it.
   const restoreFocusRef = useRef(false);
 
-  const allPersonal = useDb((s) => s.documents);
-  const allShared = useDb((s) => s.shared_documents);
+  // Full personal + shared lists power the wiki-link autocomplete and the
+  // preview's link resolution (both scopes are always needed, regardless of
+  // this editor's own `scope`).
+  const { data: allPersonal } = useGatewayList(documentsRepo.list);
+  const { data: allShared } = useGatewayList(sharedDocumentsRepo.list);
 
   useEffect(() => {
     if (!doc) return;

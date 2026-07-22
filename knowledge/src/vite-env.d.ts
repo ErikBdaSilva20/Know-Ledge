@@ -3,7 +3,6 @@
 interface ImportMetaEnv {
   readonly VITE_GATEWAY_URL: string;
   readonly VITE_TENANT_ID?: string;
-  readonly VITE_DATA_SOURCE?: "mock" | "gateway";
 }
 
 interface Window {

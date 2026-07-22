@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { useSession } from "@/lib/session";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
@@ -13,12 +12,9 @@ import { FileText, Star, Timer } from "lucide-react";
 
 export function Dashboard() {
   const { user } = useSession();
-  const mockDocuments = useDb((s) => s.documents);
-  const mockSharedDocs = useDb((s) => s.shared_documents);
-  const mockFavorites = useDb((s) => s.favorites);
-  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
-  const { data: sharedDocs } = useGatewayList(mockSharedDocs, sharedDocumentsRepo.list);
-  const { data: favorites } = useGatewayList(mockFavorites, favoritesRepo.list);
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: sharedDocs } = useGatewayList(sharedDocumentsRepo.list);
+  const { data: favorites } = useGatewayList(favoritesRepo.list);
 
   const [recents, setRecents] = useState<RecentEntry[]>([]);
   useEffect(() => {

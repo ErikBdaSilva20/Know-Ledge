@@ -1,26 +1,22 @@
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useMemo, useState } from "react";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { BookOpen, Plus, Search as SearchIcon } from "lucide-react";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
+import { usersRepo } from "@/lib/data/users.repo";
 import { handleDomainError } from "@/lib/handleError";
 import { displayName } from "@/lib/displayName";
 import { SideNavShell } from "@/components/SideNavShell";
 import { cn } from "@/lib/utils";
 
 export function SharedLayout() {
-  const mockShared = useDb((s) => s.shared_documents);
-  const { data: shared, refresh: refreshShared } = useGatewayList(
-    mockShared,
-    sharedDocumentsRepo.list,
-  );
-  // Mock-only roster; displayName() falls back to it only when a doc has no
-  // published_by_name snapshot (e.g. published before that field existed).
-  const users = useDb((s) => s.users);
+  const { data: shared, refresh: refreshShared } = useGatewayList(sharedDocumentsRepo.list);
+  // Registered users (manager/admin only; degrades to []). displayName() falls
+  // back to this roster only when a doc has no published_by_name snapshot.
+  const { data: users } = useGatewayList(usersRepo.list);
   const { user, can } = useSession();
   const navigate = useNavigate();
   const [q, setQ] = useState("");

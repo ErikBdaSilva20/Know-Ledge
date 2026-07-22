@@ -12,9 +12,8 @@ export interface Backlink {
   title: string;
 }
 
-// Narrowed to just what the computation reads (not the full mock DbState) so
-// it works equally well fed from useDb (mock) or from gateway repo.list()
-// calls — Backlinks/Graph need this in both modes.
+// Narrowed to just the four lists the computation reads, so it can be fed
+// straight from the gateway repo.list() calls Backlinks/Graph already make.
 export interface BacklinksSource {
   documents: Document[];
   shared_documents: SharedDocument[];

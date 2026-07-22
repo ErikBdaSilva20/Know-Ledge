@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { useDb } from "@/lib/useDb";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { documentsRepo } from "@/lib/data/documents.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
@@ -17,20 +16,10 @@ import { cn } from "@/lib/utils";
  * and caps its own height so thousands of references don't blow up the layout.
  */
 export function Backlinks({ scope, id }: { scope: Scope; id: string }) {
-  const mockDocuments = useDb((s) => s.documents);
-  const mockSharedDocuments = useDb((s) => s.shared_documents);
-  const mockDocumentReferences = useDb((s) => s.document_references);
-  const mockSharedDocumentReferences = useDb((s) => s.shared_document_references);
-  const { data: documents } = useGatewayList(mockDocuments, documentsRepo.list);
-  const { data: sharedDocuments } = useGatewayList(mockSharedDocuments, sharedDocumentsRepo.list);
-  const { data: documentReferences } = useGatewayList(
-    mockDocumentReferences,
-    documentReferencesRepo.list,
-  );
-  const { data: sharedDocumentReferences } = useGatewayList(
-    mockSharedDocumentReferences,
-    sharedDocumentReferencesRepo.list,
-  );
+  const { data: documents } = useGatewayList(documentsRepo.list);
+  const { data: sharedDocuments } = useGatewayList(sharedDocumentsRepo.list);
+  const { data: documentReferences } = useGatewayList(documentReferencesRepo.list);
+  const { data: sharedDocumentReferences } = useGatewayList(sharedDocumentReferencesRepo.list);
   const backlinks = computeBacklinks(
     {
       documents,

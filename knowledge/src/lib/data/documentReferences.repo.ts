@@ -1,6 +1,4 @@
 import { db } from "./client";
-import { isGatewayMode } from "./dataSource";
-import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { DocumentReference } from "../types";
 import type { Database } from "./types.gen";
 
@@ -10,27 +8,14 @@ type DocumentReferenceInsert = Database["public"]["Tables"]["document_references
 
 export const documentReferencesRepo = {
   async list(): Promise<DocumentReference[]> {
-    if (isGatewayMode()) return table.list();
-    return getState().document_references.slice();
+    return table.list();
   },
+  // owner_id is derived from the session by the gateway (Importantdoc.md §B5).
   async create(data: DocumentReferenceInsert & { owner_id: string }): Promise<DocumentReference> {
-    if (isGatewayMode()) {
-      const { owner_id, ...rest } = data;
-      return table.create(rest);
-    }
-    const r: DocumentReference = { ...data, id: genId("r"), created_at: isoNow() };
-    mutate((s) => {
-      s.document_references.push(r);
-    });
-    return r;
+    const { owner_id, ...rest } = data;
+    return table.create(rest);
   },
   async remove(id: string): Promise<void> {
-    if (isGatewayMode()) {
-      await table.remove(id);
-      return;
-    }
-    mutate((s) => {
-      s.document_references = s.document_references.filter((r) => r.id !== id);
-    });
+    await table.remove(id);
   },
 };

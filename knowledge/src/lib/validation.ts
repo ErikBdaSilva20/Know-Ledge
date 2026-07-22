@@ -1,6 +1,6 @@
-// Client-side feedback only — the mock-gateway (dev/mock-gateway/src/routes/
-// authRoutes.ts) mirrors the same rules server-side, since a client check
-// alone is never the actual enforcement boundary.
+// Client-side feedback only — the gateway (Better-Auth) mirrors the same rules
+// server-side, since a client check alone is never the actual enforcement
+// boundary.
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function isValidEmail(email: string): boolean {

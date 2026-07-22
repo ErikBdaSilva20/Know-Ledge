@@ -1,6 +1,4 @@
 import { db } from "./client";
-import { isGatewayMode } from "./dataSource";
-import { genId, getState, isoNow, mutate } from "../mockDb";
 import type { Document, SharedDocument } from "../types";
 import type { Database } from "./types.gen";
 
@@ -10,42 +8,21 @@ type SharedDocumentInsert = Database["public"]["Tables"]["shared_documents"]["In
 
 export const sharedDocumentsRepo = {
   async list(): Promise<SharedDocument[]> {
-    if (isGatewayMode()) return table.list();
-    return getState().shared_documents.slice();
+    return table.list();
   },
+  // published_by is derived from the session by the gateway (Story 3.1).
   async create(data: SharedDocumentInsert & { published_by: string }): Promise<SharedDocument> {
-    if (isGatewayMode()) {
-      // published_by is derived from the session by the gateway (Story 3.1).
-      const { published_by, ...rest } = data;
-      return table.create(rest);
-    }
-    const s: SharedDocument = {
-      id: genId("s"),
-      title: data.title,
-      content: data.content,
-      source_document_id: data.source_document_id,
-      published_by: data.published_by,
-      published_by_name: data.published_by_name ?? null,
-      created_at: isoNow(),
-      updated_at: isoNow(),
-    };
-    mutate((db) => {
-      db.shared_documents.push(s);
-    });
-    return s;
+    const { published_by, ...rest } = data;
+    return table.create(rest);
   },
   // Publish a personal document into the Base Compartilhada. Goes through the
-  // generic create() above (POST /data/shared_documents) rather than the
-  // dedicated /shared/publish route from Story 4.1 — that route isn't
-  // guaranteed to exist on the real tenant-gateway yet (see FOLLOW-UPS-BLOCO-5
-  // in _bmad-output/), and the generic route already covers everything else
-  // publish needs server-side: shared_documents is configured with
-  // `serverDerivedColumn: "published_by"` (never trusts the client) and
-  // `ownerVisibility: false` (only manager/admin can write) — see
-  // dev/mock-gateway/src/tables.ts. What it does NOT give is idempotency on a
-  // double-submit; PublishToSharedButton's disable-while-publishing covers the
-  // common single-tab double-click, but a genuine race across tabs/devices
-  // could still create two copies — an accepted, documented tradeoff.
+  // generic create() above (POST /data/shared_documents): shared_documents is
+  // configured server-side with `serverDerivedColumn: "published_by"` (never
+  // trusts the client) and `ownerVisibility: false` (only manager/admin can
+  // write). What it does NOT give is idempotency on a double-submit;
+  // PublishToSharedButton's disable-while-publishing covers the common
+  // single-tab double-click, but a genuine race across tabs/devices could
+  // still create two copies — an accepted, documented tradeoff.
   async publish(
     source: Pick<Document, "id" | "title" | "content">,
     publishedBy: string,
@@ -65,37 +42,11 @@ export const sharedDocumentsRepo = {
     patch: Partial<SharedDocument>,
     opts?: { expectedUpdatedAt?: string },
   ): Promise<SharedDocument> {
-    if (isGatewayMode()) {
-      const body: Partial<SharedDocument> & { expected_updated_at?: string } = { ...patch };
-      if (opts?.expectedUpdatedAt) body.expected_updated_at = opts.expectedUpdatedAt;
-      return table.update(id, body as Partial<SharedDocument>);
-    }
-    let updated: SharedDocument | undefined;
-    mutate((db) => {
-      const idx = db.shared_documents.findIndex((d) => d.id === id);
-      if (idx < 0) return;
-      db.shared_documents[idx] = { ...db.shared_documents[idx], ...patch, updated_at: isoNow() };
-      updated = db.shared_documents[idx];
-    });
-    if (!updated) throw new Error(`shared_documents/${id} not found`);
-    return updated;
+    const body: Partial<SharedDocument> & { expected_updated_at?: string } = { ...patch };
+    if (opts?.expectedUpdatedAt) body.expected_updated_at = opts.expectedUpdatedAt;
+    return table.update(id, body as Partial<SharedDocument>);
   },
   async remove(id: string): Promise<void> {
-    if (isGatewayMode()) {
-      await table.remove(id);
-      return;
-    }
-    mutate((db) => {
-      db.shared_documents = db.shared_documents.filter((d) => d.id !== id);
-      db.shared_document_references = db.shared_document_references.filter(
-        (r) => r.source_shared_document_id !== id && r.target_shared_document_id !== id,
-      );
-      db.document_references = db.document_references.filter(
-        (r) => !(r.target_scope === "shared" && r.target_document_id === id),
-      );
-      db.favorites = db.favorites.filter(
-        (f) => !(f.document_scope === "shared" && f.document_id === id),
-      );
-    });
+    await table.remove(id);
   },
 };

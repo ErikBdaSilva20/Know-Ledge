@@ -2,14 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { Editor } from "@/components/Editor";
 import { Backlinks } from "@/components/Backlinks";
-import { useDb } from "@/lib/useDb";
 import { useSession } from "@/lib/session";
 import { Button } from "@/components/ui/button";
 import { Star, Trash2 } from "lucide-react";
 import { favoritesRepo } from "@/lib/data/favorites.repo";
 import { sharedDocumentsRepo } from "@/lib/data/sharedDocuments.repo";
 import { documentsRepo } from "@/lib/data/documents.repo";
-import { isGatewayMode } from "@/lib/data/dataSource";
 import { useGatewayList } from "@/lib/useGatewayList";
 import { handleDomainError } from "@/lib/handleError";
 import { ConfirmDialog } from "@/components/ConfirmDialog";
@@ -19,33 +17,25 @@ export function SharedDoc() {
   const { docId } = useParams<{ docId: string }>();
   const { user, can } = useSession();
   const navigate = useNavigate();
-  const mockDoc = useDb((s) => s.shared_documents.find((d) => d.id === docId));
 
-  // Same gateway-mode gap as Editor.tsx / WorkspaceDoc.tsx.
-  const [gatewayDoc, setGatewayDoc] = useState<SharedDocument | undefined>(undefined);
+  // The generic gateway mode only supports list-then-find (Importantdoc.md §B5).
+  const [doc, setDoc] = useState<SharedDocument | undefined>(undefined);
   useEffect(() => {
-    if (!isGatewayMode()) return;
     let cancelled = false;
-    setGatewayDoc(undefined);
+    setDoc(undefined);
     sharedDocumentsRepo.list().then((docs) => {
-      if (!cancelled) setGatewayDoc(docs.find((d) => d.id === docId));
+      if (!cancelled) setDoc(docs.find((d) => d.id === docId));
     });
     return () => {
       cancelled = true;
     };
   }, [docId]);
 
-  const doc = isGatewayMode() ? gatewayDoc : mockDoc;
-  const mockDocuments = useDb((s) => s.documents);
-  const { data: allDocuments } = useGatewayList(mockDocuments, documentsRepo.list);
+  const { data: allDocuments } = useGatewayList(documentsRepo.list);
   const sourceDoc = doc?.source_document_id
     ? (allDocuments.find((d) => d.id === doc.source_document_id) ?? null)
     : null;
-  const mockFavorites = useDb((s) => s.favorites);
-  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(
-    mockFavorites,
-    favoritesRepo.list,
-  );
+  const { data: allFavorites, refresh: refreshFavorites } = useGatewayList(favoritesRepo.list);
   const favorite = allFavorites.find(
     (f) => f.owner_id === user?.id && f.document_scope === "shared" && f.document_id === docId,
   );
