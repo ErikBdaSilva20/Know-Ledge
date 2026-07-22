@@ -7,6 +7,15 @@ import type {
   SharedDocumentReference,
   User,
 } from "./types";
+import {
+  mockDocumentReferences,
+  mockDocuments,
+  mockFavorites,
+  mockFolders,
+  mockSharedDocumentReferences,
+  mockSharedDocuments,
+  mockUsers,
+} from "../mock/data";
 
 const STORAGE_KEY = "kv:db:v1";
 
@@ -30,31 +39,21 @@ function uid(prefix: string) {
   return `${prefix}_${Math.random().toString(36).slice(2, 10)}${Date.now().toString(36)}`;
 }
 
-// Sample folders/documents/shared docs were emptied out once manual testing
-// moved to real accounts against the gateway (dev/mock-gateway/seed.ts's
-// Postgres seed is the one still in use for that). The 4 users stay — other
-// screens (Explorer, shared docs, admin) still resolve owner/publisher names
-// against this list, and session.tsx's mock login resolves to "u_carla".
+// Full content (folders/documents/shared docs/references/favorites) lives in
+// src/mock/data.ts — a dedicated folder so the mocked-deploy dataset (people
+// reviewing VITE_DATA_SOURCE=mock builds, e.g. on Vercel) is one place to
+// read or extend, separate from this file's plumbing. Real accounts against
+// the gateway are unaffected (dev/mock-gateway/seed.ts's Postgres seed is
+// what that path uses). session.tsx's mock login always resolves to "u_carla".
 function seed(): DbState {
-  const users: User[] = [
-    { id: "u_ana", name: "Ana Silva", email: "ana@empresa.com", role: "rep" },
-    { id: "u_bruno", name: "Bruno Costa", email: "bruno@empresa.com", role: "manager" },
-    { id: "u_carla", name: "Carla Dias", email: "carla@empresa.com", role: "admin" },
-    { id: "u_diego", name: "Diego Reis", email: "diego@empresa.com", role: "rep" },
-  ];
-  const folders: Folder[] = [];
-  const documents: Document[] = [];
-  const shared_documents: SharedDocument[] = [];
-  const shared_document_references: SharedDocumentReference[] = [];
-
   return {
-    users,
-    folders,
-    documents,
-    shared_documents,
-    document_references: [],
-    shared_document_references,
-    favorites: [],
+    users: [...mockUsers],
+    folders: [...mockFolders],
+    documents: [...mockDocuments],
+    shared_documents: [...mockSharedDocuments],
+    document_references: [...mockDocumentReferences],
+    shared_document_references: [...mockSharedDocumentReferences],
+    favorites: [...mockFavorites],
   };
 }
 
