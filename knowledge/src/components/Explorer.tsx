@@ -651,7 +651,18 @@ function FolderMenu({ onNewDoc, onNewFolder, onRename, onDelete, itemName, isFol
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="opacity-0 group-hover:opacity-100" onClick={(e) => e.stopPropagation()}>
+        <button
+          className={cn(
+            "flex min-h-11 min-w-11 items-center justify-center rounded opacity-60 transition-opacity",
+            "focus:opacity-100 data-[state=open]:opacity-100",
+            // Hover-reveal is desktop-only: `no-touch:` never matches on a
+            // device with a touchscreen, so this row's actions stay reachable
+            // there instead of depending on a `:hover` that never fires.
+            "no-touch:min-h-0 no-touch:min-w-0 no-touch:opacity-0 no-touch:group-hover:opacity-100",
+          )}
+          aria-label={isFolder ? `Ações da pasta ${itemName}` : `Ações de ${itemName}`}
+          onClick={(e) => e.stopPropagation()}
+        >
           <MoreHorizontal className="h-3.5 w-3.5 text-muted-foreground" />
         </button>
       </DropdownMenuTrigger>
