@@ -8,6 +8,7 @@
     "dev:mock": "vite --mode mock",
     "dev:gateway": "vite --mode gateway",
     "build": "tsc && vite build",
+    "build:mock": "tsc && vite build --mode mock",
     "build:dev": "vite build --mode development",
     "preview": "vite preview",
     "lint": "eslint .",
