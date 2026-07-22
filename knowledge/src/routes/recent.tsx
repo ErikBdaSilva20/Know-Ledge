@@ -22,7 +22,7 @@ export function RecentPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Recentes</h1>
       <p className="mt-1 text-sm text-muted-foreground">Documentos abertos recentemente.</p>
       <Card className="mt-6">

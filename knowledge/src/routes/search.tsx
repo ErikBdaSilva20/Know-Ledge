@@ -37,7 +37,7 @@ export function SearchPage() {
   }, [query, documents, shared, folders, can, user?.id]);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
+    <div className="max-w-3xl px-4 py-6 sm:px-8 sm:py-10">
       <div className="mb-6">
         <div className="relative">
           <SearchIcon className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
