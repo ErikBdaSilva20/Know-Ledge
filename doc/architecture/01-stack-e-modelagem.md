@@ -27,7 +27,7 @@ flowchart LR
 | Este app (Knowledge Vault) | `knowledge/` (SPA Vite/React) |
 | Gateway (backend compartilhado) | repo separado `Cerebra-AI/tenant-gateway`, deploy Fly |
 | Edge worker (injeta tenant em runtime) | `masia/clone-templates/edge-worker/` |
-| Migrations do schema deste app | `knowledge/supabase/migrations/` (roda no Neon do tenant) |
+| Migrations do schema deste app | `knowledge/Database/migrations/` (roda no Neon do tenant) |
 
 [Source: Importantdoc.md#B2]
 
@@ -42,7 +42,7 @@ flowchart LR
 
 ## 0.4 As 3 superfícies de trabalho deste app (e somente elas)
 
-1. **Schema/migration no Neon** — `supabase/migrations/*.sql`, seguindo as regras §B4 da fundação (seção 3 abaixo).
+1. **Schema/migration no Neon** — `Database/migrations/*.sql`, seguindo as regras §B4 da fundação (seção 3 abaixo).
 2. **Camada de dados do app** — `src/lib/data/*.repo.ts`, falando com o gateway via `db.table()`.
 3. **Extensões explícitas do gateway** — quando o produto precisa de algo fora do CRUD genérico (ex.: rota Publicar, seção 5), é pedido como extensão pontual do `tenant-gateway`, nunca resolvido criando servidor próprio.
 

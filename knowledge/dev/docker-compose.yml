@@ -13,7 +13,7 @@ services:
       # Order matters: Better-Auth-shaped tables first, then the app schema
       # that references "user"(id) — Story 2.1 AC#6 / Story 7.1 AC#3.
       - ./init-db/00_better_auth.sql:/docker-entrypoint-initdb.d/00_better_auth.sql:ro
-      - ../supabase/migrations/0001_business_schema.sql:/docker-entrypoint-initdb.d/01_business_schema.sql:ro
+      - ../Database/migrations/0001_business_schema.sql:/docker-entrypoint-initdb.d/01_business_schema.sql:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U KnowLedge -d knowdb"]
       interval: 2s

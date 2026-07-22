@@ -168,7 +168,7 @@ Não é imposição da fundação (Documento 01 §9 já dizia isso) — é escol
     "vite.config.ts",
     "components.json",
     "preview-fixtures.ts",
-    "supabase/migrations/**"
+    "Database/migrations/**"
   ]
 }
 ```

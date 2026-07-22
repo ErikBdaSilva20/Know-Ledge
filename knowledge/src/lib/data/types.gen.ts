@@ -1,5 +1,5 @@
 // GENERATED — do not edit by hand.
-// Mirrors knowledge/supabase/migrations/0001_business_schema.sql (Story 2.5).
+// Mirrors knowledge/Database/migrations/0001_business_schema.sql (Story 2.5).
 // Regenerate whenever that migration changes.
 //
 // `Insert` omits every column the gateway derives server-side (id, owner_id,
