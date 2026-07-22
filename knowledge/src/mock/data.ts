@@ -127,6 +127,28 @@ export const mockDocuments: Document[] = [
     updated_at: at(12),
   },
   {
+    id: "d_ana_beta_contrato",
+    owner_id: "u_ana",
+    folder_id: "f_ana_clientes",
+    title: "Contrato Beta Ltda",
+    content:
+      "# Contrato — Beta Ltda\n\nPlano anual assinado em 15/04, vigência de 12 meses.\n\n## Condições\n\n- Renovação automática salvo aviso com 30 dias de antecedência.\n- Reajuste pelo IPCA no aniversário do contrato.\n\nDetalhes do processo de renovação em [[Renovação Beta Ltda|d_ana_beta_renovacao]].",
+    owner_name: "Ana Silva",
+    created_at: at(18),
+    updated_at: at(4),
+  },
+  {
+    id: "d_ana_beta_renovacao",
+    owner_id: "u_ana",
+    folder_id: "f_ana_clientes",
+    title: "Renovação Beta Ltda",
+    content:
+      "# Renovação — Beta Ltda\n\nAcompanhamento da renovação automática do [[Contrato Beta Ltda|d_ana_beta_contrato]].\n\n## Checklist\n\n- [ ] Confirmar satisfação do cliente 60 dias antes do vencimento.\n- [ ] Verificar se houve mudança no volume de uso.\n- [ ] Avisar o financeiro sobre o reajuste do IPCA.",
+    owner_name: "Ana Silva",
+    created_at: at(18),
+    updated_at: at(2),
+  },
+  {
     id: "d_diego_leads",
     owner_id: "u_diego",
     folder_id: "f_diego_prospeccao",
@@ -248,6 +270,22 @@ export const mockDocumentReferences: DocumentReference[] = [
     created_at: at(12),
   },
   {
+    id: "r_ana_beta_contrato_to_renovacao",
+    owner_id: "u_ana",
+    source_document_id: "d_ana_beta_contrato",
+    target_scope: "personal",
+    target_document_id: "d_ana_beta_renovacao",
+    created_at: at(4),
+  },
+  {
+    id: "r_ana_beta_renovacao_to_contrato",
+    owner_id: "u_ana",
+    source_document_id: "d_ana_beta_renovacao",
+    target_scope: "personal",
+    target_document_id: "d_ana_beta_contrato",
+    created_at: at(2),
+  },
+  {
     id: "r_diego_leads_to_manual",
     owner_id: "u_diego",
     source_document_id: "d_diego_leads",
@@ -320,5 +358,12 @@ export const mockFavorites: Favorite[] = [
     document_scope: "shared",
     document_id: "s_manual_vendas",
     created_at: at(4),
+  },
+  {
+    id: "fav_carla_beta_contrato",
+    owner_id: "u_carla",
+    document_scope: "personal",
+    document_id: "d_ana_beta_contrato",
+    created_at: at(1),
   },
 ];
